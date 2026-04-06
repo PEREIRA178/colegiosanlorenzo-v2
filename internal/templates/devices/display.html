@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>CSL Display</title>
+<style>
+:root{
+  --md-primary:#9B1230;--md-on-primary:#fff;
+  --md-primary-container:#F5E0E4;--md-on-primary-container:#5C0A1E;
+  --md-surface:#FAF8F7;--md-on-surface:#1C1B1A;--md-on-surface-variant:#4D4B4C;
+  --md-outline-variant:#CEC9CA;
+  --font-display:'DM Serif Display',Georgia,serif;
+  --font-body:'DM Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--md-surface);font-family:var(--font-body)}
+
+/* ── KIOSK MODE ── */
+.kiosk{width:100vw;height:100vh;display:grid;gap:0}
+.kiosk.layout-1col{grid-template-columns:1fr}
+.kiosk.layout-2col-50{grid-template-columns:1fr 1fr}
+.kiosk.layout-3col-33{grid-template-columns:1fr 1fr 1fr}
+
+.kiosk-panel{overflow:hidden;position:relative}
+
+/* Media panel */
+.media-panel{background:#000;display:flex;align-items:center;justify-content:center}
+.media-panel img,.media-panel video{width:100%;height:100%;object-fit:contain}
+
+/* Events panel */
+.events-panel{background:var(--md-surface);padding:40px;display:flex;flex-direction:column;gap:24px;overflow-y:auto}
+.events-panel h2{font-family:var(--font-display);font-size:32px;color:var(--md-primary)}
+
+.event-card-kiosk{
+  background:#fff;border-radius:16px;padding:24px;
+  border-left:4px solid var(--md-primary);
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+}
+.event-card-kiosk h3{font-family:var(--font-display);font-size:22px;color:var(--md-on-surface);margin-bottom:8px}
+.event-card-kiosk p{font-size:16px;color:var(--md-on-surface-variant);line-height:1.6}
+.event-card-kiosk .meta{font-size:13px;color:var(--md-primary);font-weight:500;margin-top:12px}
+
+/* Status bar */
+.kiosk-status{
+  position:fixed;bottom:0;left:0;right:0;height:40px;
+  background:var(--md-primary);color:rgba(255,255,255,0.9);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 24px;font-size:13px;font-weight:500;z-index:100;
+}
+.kiosk-clock{font-variant-numeric:tabular-nums}
+
+/* Transition */
+.slide-fade-enter{opacity:0;transform:translateY(20px)}
+.slide-fade-active{opacity:1;transform:translateY(0);transition:all 600ms ease}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<div class="kiosk layout-1col" id="kiosk">
+  <!-- Content injected by JS based on device config -->
+  <div class="media-panel" id="media-panel">
+    <div style="text-align:center;color:#fff;opacity:0.5">
+      <p style="font-size:48px;font-family:var(--font-display)">CSL</p>
+      <p style="font-size:16px;margin-top:8px">Conectando...</p>
+    </div>
+  </div>
+</div>
+
+<div class="kiosk-status">
+  <span>Colegio San Lorenzo · Display</span>
+  <span class="kiosk-clock" id="clock">--:--</span>
+</div>
+
+<script>
+// ── Config from URL ──
+const code = window.location.pathname.split('/').pop();
+
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('es-CL', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── WebSocket for realtime updates ──
+let ws;
+function connectWS() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(protocol + '//' + location.host + '/ws/device/' + code);
+
+  ws.onmessage = function(e) {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'playlist_update' || msg.type === 'refresh_all') {
+      loadPlaylist();
+    }
+  };
+
+  ws.onclose = function() {
+    setTimeout(connectWS, 3000);
+  };
+
+  // Heartbeat every 25s
+  setInterval(function() {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({type: 'heartbeat', code: code}));
+    }
+  }, 25000);
+}
+connectWS();
+
+// ── Auto-refresh every 30s (kiosk mode) ──
+setInterval(function() {
+  loadPlaylist();
+}, 30000);
+
+// ── Playlist loader ──
+let currentSlide = 0;
+let playlistItems = [];
+
+function loadPlaylist() {
+  // TODO: Fetch playlist from API based on device code
+  // fetch('/api/devices/' + code + '/playlist').then(...)
+  console.log('Loading playlist for device:', code);
+}
+
+// ── Fullscreen on click (kiosk) ──
+document.addEventListener('click', function() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(()=>{});
+  }
+});
+
+// ── Prevent sleep/screensaver ──
+if ('wakeLock' in navigator) {
+  navigator.wakeLock.request('screen').catch(()=>{});
+}
+</script>
+</body>
+</html>

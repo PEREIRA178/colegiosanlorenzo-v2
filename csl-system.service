@@ -1,0 +1,21 @@
+[Unit]
+Description=CSL System - Colegio San Lorenzo
+After=network.target
+
+[Service]
+Type=simple
+User=csl
+Group=csl
+WorkingDirectory=/opt/csl-system
+ExecStart=/opt/csl-system/csl-system
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/csl-system/.env
+
+# Security
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/csl-system/pb_data
+
+[Install]
+WantedBy=multi-user.target
