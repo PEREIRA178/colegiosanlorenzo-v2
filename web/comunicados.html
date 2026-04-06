@@ -676,5 +676,25 @@ function filtrar(tipo, btn){
   document.querySelectorAll('.reveal').forEach(function(el){obs.observe(el)});
 })();
 </script>
+<script>
+// CSL Realtime — auto-refresh comunicados on WS event
+(function() {
+  var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  var ws = new WebSocket(protocol + '//' + location.host + '/ws/web');
+  ws.onmessage = function(e) {
+    try {
+      var msg = JSON.parse(e.data);
+      if (msg.type === 'refresh_all' || msg.type === 'refresh_web' || msg.type === 'event_update' || msg.type === 'news_update') {
+        // Reload the page to show fresh content
+        window.location.reload();
+      }
+    } catch(err) {}
+  };
+  ws.onclose = function() {
+    // Reconnect after 5 seconds
+    setTimeout(function() { location.reload(); }, 5000);
+  };
+})();
+</script>
 </body>
 </html>

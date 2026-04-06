@@ -1,10 +1,37 @@
-<!-- This page is loaded as HTMX fragment into dashboard.html #main-content -->
-<!-- Full implementation follows same pattern as dashboard.html -->
 <div class="content">
-  <h2 style="font-family:var(--font-display,'DM Serif Display',serif);font-size:24px;margin-bottom:24px">
-    Gestión de Usuarios
-  </h2>
-  <div style="background:#fff;border-radius:24px;border:1px solid #CEC9CA;padding:32px;min-height:400px">
-    <p style="color:#7E7B7C;font-size:14px">Módulo en construcción. Conectar con PocketBase API.</p>
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Gestión de Usuarios</h2>
+      <button class="topbar-btn topbar-btn-primary"
+              hx-post="/admin/users"
+              hx-target="#modal-container"
+              hx-swap="innerHTML">
+        <span class="material-symbols-outlined" style="font-size:16px">person_add</span> Crear usuario
+      </button>
+    </div>
+    <div id="users-table-wrap"
+         hx-get="/admin/users?fragment=table"
+         hx-trigger="load, userCreated from:body, userUpdated from:body, userDeleted from:body"
+         hx-swap="innerHTML">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Rol</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--md-outline)">
+            <div style="width:24px;height:24px;border:2px solid var(--md-primary);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px"></div>
+            Cargando usuarios...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
+  <div id="modal-container"></div>
 </div>

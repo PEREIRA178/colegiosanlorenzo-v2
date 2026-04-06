@@ -67,7 +67,7 @@ func main() {
 	}))
 
 	// ── Static files ──
-	app.Static("/static", "./static", fiber.Static{
+	app.Static("/static", "./web/static", fiber.Static{
 		Compress:      true,
 		CacheDuration: cfg.StaticCacheDuration,
 	})
@@ -75,6 +75,7 @@ func main() {
 	// ── Realtime hub ──
 	hub := realtime.NewHub()
 	go hub.Run()
+	realtime.SetHubInstance(hub)
 
 	// ══════════════════════════════════════════════════════
 	//  PUBLIC WEB ROUTES
@@ -91,9 +92,9 @@ func main() {
 	// ── HTMX fragment endpoints (public) ──
 	frag := app.Group("/fragments")
 	frag.Get("/hero", fragments.HeroCarousel(cfg))
-	frag.Get("/eventos", fragments.Eventos(cfg))
-	frag.Get("/noticias", fragments.Noticias(cfg))
-	frag.Get("/blog", fragments.Blog(cfg))
+	frag.Get("/eventos", fragments.Eventos(cfg, pb))
+	frag.Get("/noticias", fragments.Noticias(cfg, pb))
+	frag.Get("/blog", fragments.Blog(cfg, pb))
 
 	// ── RSS feed ──
 	app.Get("/rss.xml", web.RSSFeed(cfg))

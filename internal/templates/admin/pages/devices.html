@@ -1,10 +1,39 @@
-<!-- This page is loaded as HTMX fragment into dashboard.html #main-content -->
-<!-- Full implementation follows same pattern as dashboard.html -->
 <div class="content">
-  <h2 style="font-family:var(--font-display,'DM Serif Display',serif);font-size:24px;margin-bottom:24px">
-    Pantallas y Totems
-  </h2>
-  <div style="background:#fff;border-radius:24px;border:1px solid #CEC9CA;padding:32px;min-height:400px">
-    <p style="color:#7E7B7C;font-size:14px">Módulo en construcción. Conectar con PocketBase API.</p>
+  <div class="card">
+    <div class="card-header">
+      <h2 class="card-title">Pantallas y Totems</h2>
+      <button class="topbar-btn topbar-btn-primary"
+              hx-post="/admin/devices"
+              hx-target="#modal-container"
+              hx-swap="innerHTML">
+        <span class="material-symbols-outlined" style="font-size:16px">add</span> Registrar dispositivo
+      </button>
+    </div>
+    <div id="devices-table-wrap"
+         hx-get="/admin/devices?fragment=table"
+         hx-trigger="load, deviceCreated from:body, deviceUpdated from:body, deviceDeleted from:body"
+         hx-swap="innerHTML">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Código</th>
+            <th>Layout</th>
+            <th>Playlist</th>
+            <th>Estado</th>
+            <th>Última conexión</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--md-outline)">
+            <div style="width:24px;height:24px;border:2px solid var(--md-primary);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px"></div>
+            Cargando dispositivos...
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
+  <div id="modal-container"></div>
 </div>
