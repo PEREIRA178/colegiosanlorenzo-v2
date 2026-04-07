@@ -81,6 +81,8 @@ func main() {
 	//  PUBLIC WEB ROUTES
 	// ══════════════════════════════════════════════════════
 	app.Get("/", web.IndexHandler(cfg))
+	app.Get("/index", func(c *fiber.Ctx) error { return c.Redirect("/", fiber.StatusMovedPermanently) })
+	app.Get("/index.html", func(c *fiber.Ctx) error { return c.Redirect("/", fiber.StatusMovedPermanently) })
 	app.Get("/nuestro-colegio.html", web.PageHandler(cfg, "nuestro-colegio"))
 	app.Get("/admision.html", web.PageHandler(cfg, "admision"))
 	app.Get("/comunicados.html", web.PageHandler(cfg, "comunicados"))
