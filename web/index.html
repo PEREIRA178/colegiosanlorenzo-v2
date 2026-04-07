@@ -754,6 +754,13 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
   .nav-links.open .nav-item-group{width:100%}
   .nav-links.open a{width:100%;padding:12px 16px;font-size:15px}
   @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  /* accordion touch */
+  .nav-links.open .nav-dropdown{display:none;flex-direction:column;position:static;width:100%;min-width:0;padding:2px 0 4px 12px;background:transparent;box-shadow:none;border-radius:0;animation:none;gap:0}
+  .nav-links.open .nav-item-group.expanded .nav-dropdown{display:flex}
+  .nav-links.open .nav-link-main{display:flex;justify-content:space-between;align-items:center}
+  .nav-links.open .nav-link-main::after{content:'›';font-size:20px;line-height:1;transition:transform 200ms;flex-shrink:0;opacity:.5}
+  .nav-links.open .nav-item-group.expanded .nav-link-main::after{transform:rotate(90deg);opacity:1}
+  .nav-links.open .nav-dropdown a{font-size:13px!important;padding:7px 12px!important;color:var(--md-on-surface-variant)}
 }
 
 </style>
@@ -1237,70 +1244,57 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
 })();
 </script>
 
-<!-- Mobile hamburger menu -->
 <div class="nav-overlay" id="nav-overlay"></div>
 <script>
-// ── Hamburger Menu ──
+// ── Mobile nav: hamburger + accordion touch ──
 (function(){
-  const hamburger = document.querySelector('.nav-hamburger');
-  const navLinks = document.querySelector('.nav-links');
-  const overlay = document.getElementById('nav-overlay');
-  
-  if(hamburger && navLinks){
-    hamburger.addEventListener('click', function(){
-      navLinks.classList.toggle('open');
-      overlay.classList.toggle('open');
-      // Animate hamburger spans
-      const spans = hamburger.querySelectorAll('span');
-      if(navLinks.classList.contains('open')){
-        spans[0].style.transform='rotate(45deg) translate(5px,5px)';
-        spans[1].style.opacity='0';
-        spans[2].style.transform='rotate(-45deg) translate(5px,-5px)';
-      } else {
-        spans[0].style.transform='none';
-        spans[1].style.opacity='1';
-        spans[2].style.transform='none';
+  var hamburger = document.querySelector('.nav-hamburger');
+  var navLinks  = document.querySelector('.nav-links');
+  var overlay   = document.getElementById('nav-overlay');
+  if(!hamburger || !navLinks) return;
+
+  function closeMenu(){
+    navLinks.classList.remove('open');
+    overlay.classList.remove('open');
+    hamburger.querySelectorAll('span').forEach(function(s){
+      s.style.transform=''; s.style.opacity='';
+    });
+    // collapse all accordion items
+    navLinks.querySelectorAll('.nav-item-group.expanded').forEach(function(g){
+      g.classList.remove('expanded');
+    });
+  }
+
+  hamburger.addEventListener('click', function(){
+    var isOpen = navLinks.classList.toggle('open');
+    overlay.classList.toggle('open', isOpen);
+    var spans = hamburger.querySelectorAll('span');
+    if(isOpen){
+      spans[0].style.transform='rotate(45deg) translate(5px,5px)';
+      spans[1].style.opacity='0';
+      spans[2].style.transform='rotate(-45deg) translate(5px,-5px)';
+    } else {
+      closeMenu();
+    }
+  });
+
+  overlay.addEventListener('click', closeMenu);
+
+  // Accordion: tap parent link → expand submenu (don't navigate)
+  navLinks.querySelectorAll('.nav-item-group .nav-link-main').forEach(function(link){
+    link.addEventListener('click', function(e){
+      if(navLinks.classList.contains('open') && window.innerWidth <= 900){
+        e.preventDefault();
+        var group = this.closest('.nav-item-group');
+        var wasExpanded = group.classList.contains('expanded');
+        // collapse siblings
+        navLinks.querySelectorAll('.nav-item-group.expanded').forEach(function(g){
+          g.classList.remove('expanded');
+        });
+        if(!wasExpanded) group.classList.add('expanded');
       }
     });
-    overlay.addEventListener('click', function(){
-      navLinks.classList.remove('open');
-      overlay.classList.remove('open');
-      hamburger.querySelectorAll('span').forEach(s=>{s.style.transform='none';s.style.opacity='1'});
-    });
-  }
-})();
-
-// ── Realtime WebSocket (auto-refresh HTMX fragments) ──
-(function(){
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  let ws;
-  
-  function connect(){
-    ws = new WebSocket(protocol + '//' + location.host + '/ws/web');
-    ws.onmessage = function(e){
-      try {
-        const msg = JSON.parse(e.data);
-        if(msg.type === 'refresh_web' || msg.type === 'refresh_all'){
-          // Re-fetch all HTMX fragments
-          const heroEl = document.getElementById('hero') || document.getElementById('hero-fragment');
-          const eventosEl = document.getElementById('eventos') || document.getElementById('eventos-fragment');
-          const noticiasEl = document.getElementById('noticias') || document.getElementById('noticias-fragment');
-          const blogEl = document.getElementById('blog') || document.getElementById('blog-fragment');
-          
-          if(heroEl) htmx.ajax('GET', '/fragments/hero', {target: heroEl, swap: 'outerHTML'});
-          if(eventosEl) htmx.ajax('GET', '/fragments/eventos', {target: eventosEl, swap: 'outerHTML'});
-          if(noticiasEl) htmx.ajax('GET', '/fragments/noticias', {target: noticiasEl, swap: 'outerHTML'});
-          if(blogEl) htmx.ajax('GET', '/fragments/blog', {target: blogEl, swap: 'outerHTML'});
-        }
-      } catch(err){}
-    };
-    ws.onclose = function(){
-      setTimeout(connect, 5000);
-    };
-  }
-  
-  // Only connect if htmx is loaded
-  if(typeof htmx !== 'undefined') connect();
+  });
 })();
 </script>
 

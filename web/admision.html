@@ -287,6 +287,13 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
     animation:slideIn 300ms var(--ease-express);
   }
   @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+  /* accordion touch */
+  .nav-links.open .nav-dropdown{display:none;flex-direction:column;position:static;width:100%;min-width:0;padding:2px 0 4px 12px;background:transparent;box-shadow:none;border-radius:0;animation:none;gap:0}
+  .nav-links.open .nav-item-group.expanded .nav-dropdown{display:flex}
+  .nav-links.open .nav-link-main{display:flex;justify-content:space-between;align-items:center}
+  .nav-links.open .nav-link-main::after{content:'›';font-size:20px;line-height:1;transition:transform 200ms;flex-shrink:0;opacity:.5}
+  .nav-links.open .nav-item-group.expanded .nav-link-main::after{transform:rotate(90deg);opacity:1}
+  .nav-links.open .nav-dropdown a{font-size:13px!important;padding:7px 12px!important;color:var(--md-on-surface-variant)}
 }
 
 </style>
@@ -700,6 +707,59 @@ function toggleFaq(btn){
   window.addEventListener('scroll',function(){nav.classList.toggle('scrolled',window.scrollY>20)});
   var obs=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:.08});
   document.querySelectorAll('.reveal').forEach(function(el){obs.observe(el)});
+})();
+</script>
+<div class="nav-overlay" id="nav-overlay"></div>
+<script>
+// ── Mobile nav: hamburger + accordion touch ──
+(function(){
+  var hamburger = document.querySelector('.nav-hamburger');
+  var navLinks  = document.querySelector('.nav-links');
+  var overlay   = document.getElementById('nav-overlay');
+  if(!hamburger || !navLinks) return;
+
+  function closeMenu(){
+    navLinks.classList.remove('open');
+    overlay.classList.remove('open');
+    hamburger.querySelectorAll('span').forEach(function(s){
+      s.style.transform=''; s.style.opacity='';
+    });
+    // collapse all accordion items
+    navLinks.querySelectorAll('.nav-item-group.expanded').forEach(function(g){
+      g.classList.remove('expanded');
+    });
+  }
+
+  hamburger.addEventListener('click', function(){
+    var isOpen = navLinks.classList.toggle('open');
+    overlay.classList.toggle('open', isOpen);
+    var spans = hamburger.querySelectorAll('span');
+    if(isOpen){
+      spans[0].style.transform='rotate(45deg) translate(5px,5px)';
+      spans[1].style.opacity='0';
+      spans[2].style.transform='rotate(-45deg) translate(5px,-5px)';
+    } else {
+      closeMenu();
+    }
+  });
+
+  overlay.addEventListener('click', closeMenu);
+
+  // Accordion: tap parent link → expand submenu (don't navigate)
+  navLinks.querySelectorAll('.nav-item-group .nav-link-main').forEach(function(link){
+    link.addEventListener('click', function(e){
+      if(navLinks.classList.contains('open') && window.innerWidth <= 900){
+        e.preventDefault();
+        var group = this.closest('.nav-item-group');
+        var wasExpanded = group.classList.contains('expanded');
+        // collapse siblings
+        navLinks.querySelectorAll('.nav-item-group.expanded').forEach(function(g){
+          g.classList.remove('expanded');
+        });
+        if(!wasExpanded) group.classList.add('expanded');
+      }
+    });
+  });
 })();
 </script>
 </body>
