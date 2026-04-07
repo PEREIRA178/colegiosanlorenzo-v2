@@ -381,129 +381,33 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
     <h2 class="headline-l reveal reveal-delay-1" style="margin:12px 0 0">Comunicados</h2>
     <div class="filtro-row" style="margin-top:28px">
       <span style="font-size:12px;color:var(--md-outline);margin-right:4px">Filtrar:</span>
-      <button class="filtro-chip active" onclick="filtrar('todos',this)">Todos</button>
-      <button class="filtro-chip" onclick="filtrar('urgente',this)">Urgentes</button>
-      <button class="filtro-chip" onclick="filtrar('reunion',this)">Reuniones</button>
-      <button class="filtro-chip" onclick="filtrar('info',this)">Información</button>
-      <button class="filtro-chip" onclick="filtrar('academico',this)">Académico</button>
-      <button class="filtro-chip" onclick="filtrar('evento',this)">Eventos</button>
+      <button class="filtro-chip active" onclick="filtrarHTMX('todos',this)">Todos</button>
+      <button class="filtro-chip" onclick="filtrarHTMX('urgente',this)">Urgentes</button>
+      <button class="filtro-chip" onclick="filtrarHTMX('reunion',this)">Reuniones</button>
+      <button class="filtro-chip" onclick="filtrarHTMX('info',this)">Información</button>
+      <button class="filtro-chip" onclick="filtrarHTMX('academico',this)">Académico</button>
+      <button class="filtro-chip" onclick="filtrarHTMX('evento',this)">Eventos</button>
     </div>
-    <div class="comunicados-grid">
-      <!-- URGENTE -->
-      <div class="comunicado-card tipo-urgente reveal" data-tipo="urgente">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">⚠ Emergencia</span>
-          <h3>Simulacro de Evacuación — Jueves 2 de abril</h3>
-          <p>Recordamos a toda la comunidad escolar que el <strong>jueves 2 de abril</strong> se realizará el simulacro de evacuación obligatorio. La actividad se llevará a cabo a las 10:00 horas. Participación de todos los cursos. Se ruega máxima atención a las instrucciones del personal.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">31 de marzo, 2026</span>
-          <a href="#" class="comunicado-btn">Ver más →</a>
+    <div id="comunicados-list"
+         hx-get="/fragments/comunicados"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+      <div class="comunicados-grid">
+        <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--md-outline)">
+          <div style="width:24px;height:24px;border:2px solid var(--md-primary);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px"></div>
+          Cargando comunicados...
         </div>
       </div>
-
-      <!-- REUNIÓN -->
-      <div class="comunicado-card tipo-reunion reveal reveal-delay-1" data-tipo="reunion">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Reunión</span>
-          <h3>Reunión de Apoderados 7° Básico</h3>
-          <p>Se cita a los apoderados de 7° año básico a reunión del primer trimestre 2026. La reunión se realizará el <strong>17 de abril a las 18:30 hrs</strong> en la sala del curso. Asistencia obligatoria. Se tratarán temas de evaluaciones y actividades del trimestre.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">17 de abril, 2026</span>
-          <a href="cepad.html#reuniones" class="comunicado-btn">Ver más →</a>
-        </div>
-      </div>
-
-      <!-- EVENTO -->
-      <div class="comunicado-card tipo-evento reveal reveal-delay-2" data-tipo="evento">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Evento</span>
-          <h3>Campeonato de Tenis Padre-Hijo</h3>
-          <p>Inscripciones abiertas para el campeonato de tenis padre-hijo, <strong>3 de abril de 2026</strong>. Una iniciativa del Área Deportiva EDEX que une a las familias a través del deporte. Inscripciones en secretaría o con el profesor de Educación Física.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">3 de abril, 2026</span>
-          <a href="edex.html" class="comunicado-btn">Ver EDEX →</a>
-        </div>
-      </div>
-
-      <!-- ACADÉMICO -->
-      <div class="comunicado-card tipo-academico reveal reveal-delay-3" data-tipo="academico">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Académico</span>
-          <h3>Inicio del año escolar 2026 — Nuevas iniciativas pedagógicas</h3>
-          <p>El Colegio San Lorenzo inicia el año escolar 2026 con importantes cambios en su propuesta pedagógica, incorporando metodologías activas, trabajo por proyectos y herramientas tecnológicas en el aula para todos los niveles.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">1 de abril, 2026</span>
-          <a href="#" class="comunicado-btn">Ver más →</a>
-        </div>
-      </div>
-
-      <!-- INFO -->
-      <div class="comunicado-card tipo-info reveal" data-tipo="info">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Información</span>
-          <h3>Sistema Digital Wellness — Comunicación por WhatsApp</h3>
-          <p>El colegio informa que toda la comunicación oficial con apoderados se realizará a través del sistema Digital Wellness. Los avisos llegan directamente por WhatsApp. Para registrarte en el sistema, consulta en secretaría.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">15 de marzo, 2026</span>
-          <a href="#digital-wellness" class="comunicado-btn">Más info →</a>
-        </div>
-      </div>
-
-      <!-- REUNIÓN MEDIA -->
-      <div class="comunicado-card tipo-reunion reveal reveal-delay-1" data-tipo="reunion">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Reunión</span>
-          <h3>Reunión General Enseñanza Media — 6 de mayo</h3>
-          <p>Se cita a apoderados de 1° a 4° Medio a reunión general informativa del primer trimestre 2026. Información sobre evaluaciones integradoras y proceso PAES 2026. Asistencia informativa, miércoles 6 de mayo a las 19:00 hrs en el gimnasio del colegio.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">6 de mayo, 2026</span>
-          <a href="cepad.html#reuniones" class="comunicado-btn">Ver calendario →</a>
-        </div>
-      </div>
-
-      <!-- ACADÉMICO CEAL -->
-      <div class="comunicado-card tipo-academico reveal reveal-delay-2" data-tipo="academico">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Académico</span>
-          <h3>Calendario de pruebas primer trimestre 2026 — CEAL</h3>
-          <p>Se informa a los apoderados que el calendario de pruebas del primer trimestre 2026 está disponible en la sección CEAL del sitio web. Incluye fechas de pruebas, integradoras y exámenes para todos los niveles.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">5 de marzo, 2026</span>
-          <a href="ceal.html#calendario" class="comunicado-btn">Ver calendario →</a>
-        </div>
-      </div>
-
-      <!-- INFO ÚTILES -->
-      <div class="comunicado-card tipo-info reveal reveal-delay-3" data-tipo="info">
-        <div class="comunicado-accent"></div>
-        <div class="comunicado-body">
-          <span class="comunicado-chip">Información</span>
-          <h3>Lista de útiles escolares 2026 disponible en CEPAD</h3>
-          <p>Las listas de útiles escolares para todos los niveles del año 2026 ya están disponibles en la sección CEPAD del sitio web del colegio. Descarga la lista correspondiente al nivel de tu hijo/a.</p>
-        </div>
-        <div class="comunicado-footer">
-          <span class="comunicado-fecha">1 de marzo, 2026</span>
-          <a href="cepad.html#utiles" class="comunicado-btn">Ver lista →</a>
-        </div>
-      </div>
-
     </div>
   </div>
 </section>
+<script>
+function filtrarHTMX(tipo, btn) {
+  document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  htmx.ajax('GET', '/fragments/comunicados?filter=' + tipo, {target:'#comunicados-list', swap:'innerHTML'});
+}
+</script>
 
 <!-- CALENDARIO -->
 <section class="section section-bg-gray" id="calendario">

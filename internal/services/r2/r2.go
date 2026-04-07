@@ -14,20 +14,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-// Client wraps S3 client for Cloudflare R2
 type Client struct {
 	s3     *s3.Client
 	bucket string
 	pubURL string
 }
 
-// New creates an R2-compatible S3 client
 func New(cfg *config.Config) (*Client, error) {
 	endpoint := fmt.Sprintf("https://%s.r2.cloudflarestorage.com", cfg.R2AccountID)
-
-	r2Resolver := s3.EndpointResolverFunc(func(region string, options s3.EndpointResolverOptions) (s3.Endpoint, error) {
-		return s3.Endpoint{URL: endpoint}, nil
-	})
 
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.TODO(),
 		awsconfig.WithCredentialsProvider(
@@ -40,7 +34,8 @@ func New(cfg *config.Config) (*Client, error) {
 	}
 
 	client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.EndpointResolver = r2Resolver
+		o.BaseEndpoint = &endpoint
+		o.UsePathStyle = true
 	})
 
 	return &Client{
@@ -50,7 +45,6 @@ func New(cfg *config.Config) (*Client, error) {
 	}, nil
 }
 
-// Upload sends a file to R2 and returns the public URL
 func (c *Client) Upload(ctx context.Context, key string, body io.Reader, contentType string) (string, error) {
 	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:      &c.bucket,
@@ -61,12 +55,9 @@ func (c *Client) Upload(ctx context.Context, key string, body io.Reader, content
 	if err != nil {
 		return "", fmt.Errorf("R2 upload failed: %w", err)
 	}
-
-	url := fmt.Sprintf("%s/%s", c.pubURL, key)
-	return url, nil
+	return fmt.Sprintf("%s/%s", c.pubURL, key), nil
 }
 
-// Delete removes a file from R2
 func (c *Client) Delete(ctx context.Context, key string) error {
 	_, err := c.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucket,
@@ -75,7 +66,6 @@ func (c *Client) Delete(ctx context.Context, key string) error {
 	return err
 }
 
-// GenerateKey creates a unique storage key for a file
 func GenerateKey(prefix, filename string) string {
 	ext := filepath.Ext(filename)
 	ts := time.Now().Format("20060102-150405")

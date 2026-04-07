@@ -22,24 +22,18 @@ import (
 )
 
 func main() {
-	// ── Load config ──
 	cfg := config.Load()
 
-	// ── PocketBase (embedded) ──
 	pb := pocketbase.New()
-
-	// Register collections & hooks before starting PB
 	auth.RegisterPBHooks(pb)
 	realtime.RegisterPBHooks(pb)
 
-	// Start PocketBase in background (serves its own admin UI on :8090)
 	go func() {
 		if err := pb.Start(); err != nil {
 			log.Fatalf("PocketBase failed: %v", err)
 		}
 	}()
 
-	// ── Fiber app ──
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
@@ -52,10 +46,9 @@ func main() {
 			}
 			return c.Status(code).SendString("Error interno del servidor")
 		},
-		BodyLimit: 50 * 1024 * 1024, // 50MB for media uploads
+		BodyLimit: 50 * 1024 * 1024,
 	})
 
-	// ── Global middleware ──
 	app.Use(logger.New(logger.Config{
 		Format:     "[${time}] ${status} ${method} ${path} (${latency})\n",
 		TimeFormat: "15:04:05",
@@ -66,20 +59,16 @@ func main() {
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization, HX-Request, HX-Trigger",
 	}))
 
-	// ── Static files ──
 	app.Static("/static", "./web/static", fiber.Static{
 		Compress:      true,
 		CacheDuration: cfg.StaticCacheDuration,
 	})
 
-	// ── Realtime hub ──
 	hub := realtime.NewHub()
 	go hub.Run()
 	realtime.SetHubInstance(hub)
 
-	// ══════════════════════════════════════════════════════
-	//  PUBLIC WEB ROUTES
-	// ══════════════════════════════════════════════════════
+	// ── PUBLIC WEB ──
 	app.Get("/", web.IndexHandler(cfg))
 	app.Get("/index", func(c *fiber.Ctx) error { return c.Redirect("/", fiber.StatusMovedPermanently) })
 	app.Get("/index.html", func(c *fiber.Ctx) error { return c.Redirect("/", fiber.StatusMovedPermanently) })
@@ -91,22 +80,18 @@ func main() {
 	app.Get("/inclusion.html", web.PageHandler(cfg, "inclusion"))
 	app.Get("/ceal.html", web.PageHandler(cfg, "ceal"))
 
-	// ── HTMX fragment endpoints (public) ──
+	// ── HTMX FRAGMENTS ──
 	frag := app.Group("/fragments")
 	frag.Get("/hero", fragments.HeroCarousel(cfg))
 	frag.Get("/eventos", fragments.Eventos(cfg, pb))
 	frag.Get("/noticias", fragments.Noticias(cfg, pb))
+	frag.Get("/comunicados", fragments.Comunicados(cfg, pb))
 	frag.Get("/blog", fragments.Blog(cfg, pb))
 
-	// ── RSS feed ──
 	app.Get("/rss.xml", web.RSSFeed(cfg))
 
-	// ══════════════════════════════════════════════════════
-	//  DEVICE DISPLAY ROUTES
-	// ══════════════════════════════════════════════════════
+	// ── DEVICE / WS ──
 	app.Get("/display/:code", web.DeviceDisplay(cfg))
-
-	// ── WebSocket upgrade check ──
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if gows.IsWebSocketUpgrade(c) {
 			return c.Next()
@@ -116,43 +101,40 @@ func main() {
 	app.Get("/ws/device/:code", gows.New(ws.DeviceSocket(hub)))
 	app.Get("/ws/web", gows.New(ws.WebSocket(hub)))
 
-	// ══════════════════════════════════════════════════════
-	//  ADMIN / DASHBOARD ROUTES (protected)
-	// ══════════════════════════════════════════════════════
+	// ── ADMIN ──
 	app.Get("/admin/login", admin.LoginPage(cfg))
 	app.Post("/admin/login", admin.LoginSubmit(cfg))
 	app.Post("/admin/logout", admin.Logout())
 
 	adm := app.Group("/admin", middleware.AuthRequired(cfg))
 
-	// Dashboard
 	adm.Get("/", admin.Dashboard(cfg))
 	adm.Get("/dashboard", admin.Dashboard(cfg))
 
-	// Multimedia CRUD
-	adm.Get("/multimedia", admin.MultimediaList(cfg))
+	// Multimedia
+	adm.Get("/multimedia", admin.MultimediaList(cfg, pb))
 	adm.Get("/multimedia/new", admin.MultimediaForm(cfg))
-	adm.Post("/multimedia", admin.MultimediaCreate(cfg))
-	adm.Get("/multimedia/:id/edit", admin.MultimediaEdit(cfg))
-	adm.Put("/multimedia/:id", admin.MultimediaUpdate(cfg))
-	adm.Delete("/multimedia/:id", admin.MultimediaDelete(cfg))
+	adm.Post("/multimedia", admin.MultimediaCreate(cfg, pb))
+	adm.Get("/multimedia/:id/edit", admin.MultimediaEdit(cfg, pb))
+	adm.Put("/multimedia/:id", admin.MultimediaUpdate(cfg, pb))
+	adm.Delete("/multimedia/:id", admin.MultimediaDelete(cfg, pb))
 
-	// Events CRUD
-	adm.Get("/events", admin.EventsList(cfg))
+	// Events (content_blocks excl. NOTICIA)
+	adm.Get("/events", admin.EventsList(cfg, pb))
 	adm.Get("/events/new", admin.EventForm(cfg))
-	adm.Post("/events", admin.EventCreate(cfg))
-	adm.Get("/events/:id/edit", admin.EventEdit(cfg))
-	adm.Put("/events/:id", admin.EventUpdate(cfg))
-	adm.Delete("/events/:id", admin.EventDelete(cfg))
-	adm.Post("/events/:id/publish", admin.EventPublish(cfg))
+	adm.Post("/events", admin.EventCreate(cfg, pb))
+	adm.Get("/events/:id/edit", admin.EventEdit(cfg, pb))
+	adm.Put("/events/:id", admin.EventUpdate(cfg, pb))
+	adm.Delete("/events/:id", admin.EventDelete(cfg, pb))
+	adm.Post("/events/:id/publish", admin.EventPublish(cfg, pb))
 
-	// News CRUD
-	adm.Get("/news", admin.NewsList(cfg))
+	// News (content_blocks category=NOTICIA)
+	adm.Get("/news", admin.NewsList(cfg, pb))
 	adm.Get("/news/new", admin.NewsForm(cfg))
-	adm.Post("/news", admin.NewsCreate(cfg))
-	adm.Get("/news/:id/edit", admin.NewsEdit(cfg))
-	adm.Put("/news/:id", admin.NewsUpdate(cfg))
-	adm.Delete("/news/:id", admin.NewsDelete(cfg))
+	adm.Post("/news", admin.NewsCreate(cfg, pb))
+	adm.Get("/news/:id/edit", admin.NewsEdit(cfg, pb))
+	adm.Put("/news/:id", admin.NewsUpdate(cfg, pb))
+	adm.Delete("/news/:id", admin.NewsDelete(cfg, pb))
 
 	// Playlists
 	adm.Get("/playlists", admin.PlaylistList(cfg))
@@ -170,31 +152,27 @@ func main() {
 	adm.Delete("/devices/:id", admin.DeviceDelete(cfg))
 	adm.Post("/devices/:id/assign-playlist", admin.DeviceAssignPlaylist(cfg))
 
-	// Users (superadmin/director only)
+	// Users
 	adm.Get("/users", middleware.RoleRequired("superadmin", "director"), admin.UserList(cfg))
 	adm.Post("/users", middleware.RoleRequired("superadmin", "director"), admin.UserCreate(cfg))
 	adm.Put("/users/:id", middleware.RoleRequired("superadmin", "director"), admin.UserUpdate(cfg))
 	adm.Delete("/users/:id", middleware.RoleRequired("superadmin"), admin.UserDelete(cfg))
 
-	// WhatsApp logs
 	adm.Get("/whatsapp-logs", admin.WhatsAppLogs(cfg))
 
-	// ── Webhook (WhatsApp inbound) ──
 	app.Post("/webhook/whatsapp", web.WhatsAppWebhook(cfg))
 
-	// ── Start server ──
 	port := cfg.Port
 	if port == "" {
 		port = "3000"
 	}
-
-	log.Printf("🏫 CSL System en http://localhost:%s", port)
-	log.Printf("📊 Dashboard: http://localhost:%s/admin", port)
-	log.Printf("🔧 PocketBase Admin: http://localhost:8090/_/", port)
-
 	if envPort := os.Getenv("PORT"); envPort != "" {
 		port = envPort
 	}
+
+	log.Printf("🏫 CSL System en http://localhost:%s", port)
+	log.Printf("📊 Dashboard: http://localhost:%s/admin", port)
+	log.Printf("🔧 PocketBase Admin: http://localhost:8090/_/")
 
 	log.Fatal(app.Listen(":" + port))
 }

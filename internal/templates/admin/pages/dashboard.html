@@ -127,6 +127,19 @@ tr:hover td{background:var(--md-surface-container-low)}
 .toast-error{background:#FDECEA;color:#B71C1C;border:1px solid rgba(183,28,28,0.15);box-shadow:var(--elev-3)}
 @keyframes toastIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:translateX(0)}}
 
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-card{background:var(--md-surface-bright);border-radius:var(--r-xl);padding:32px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 80px rgba(0,0,0,0.25)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-header h3{font-family:var(--font-display);font-size:20px;color:var(--md-on-surface)}
+.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:16px;border-top:1px solid var(--md-outline-variant)}
+.form-field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.form-field label{font-size:12px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--md-outline)}
+.form-input{width:100%;padding:10px 14px;border:1.5px solid var(--md-outline-variant);border-radius:var(--r-md);font-family:var(--font-body);font-size:14px;color:var(--md-on-surface);background:var(--md-surface);transition:border-color 150ms;outline:none}
+.form-input:focus{border-color:var(--md-primary)}
+textarea.form-input{resize:vertical;min-height:80px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@keyframes spin{to{transform:rotate(360deg)}}
 /* ── RESPONSIVE ── */
 @media(max-width:1200px){.stats-row{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){
@@ -135,6 +148,7 @@ tr:hover td{background:var(--md-surface-container-low)}
   .main{margin-left:0}
   .stats-row{grid-template-columns:1fr}
   .content{padding:20px 16px}
+  .form-row{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -330,6 +344,9 @@ tr:hover td{background:var(--md-surface-container-low)}
     </div>
   </div>
 </div>
+
+<div id="modal-container"></div>
+<div id="toast-area" style="position:fixed;top:80px;right:24px;z-index:9999"></div>
 
 <script>
 // Sidebar active link
