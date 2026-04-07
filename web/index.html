@@ -44,6 +44,7 @@
 /* ── RESET & BASE ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+*{-webkit-tap-highlight-color:transparent}
 body{
   font-family:var(--font-body);
   background:var(--md-surface);
@@ -432,13 +433,13 @@ body::before{
   max-width:var(--max-w);margin:var(--sp-48) auto 0;
   display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-16);
 }
-.edex-card-link{display:block;text-decoration:none;color:inherit}
+.edex-card-link{display:block;text-decoration:none;color:inherit;height:100%}
 .edex-card{
   background:var(--md-surface-bright);border-radius:var(--r-xl);
   padding:var(--sp-32) var(--sp-20);
   border:1px solid var(--md-outline-variant);text-align:center;
   transition:background var(--ease-express) 300ms,transform var(--ease-express) 300ms,box-shadow var(--ease-express) 300ms;
-  cursor:pointer;
+  cursor:pointer;height:100%;box-sizing:border-box;
 }
 .edex-card:hover{background:var(--md-primary);transform:translateY(-6px);box-shadow:var(--elev-4);border-color:transparent}
 .edex-icon{
@@ -744,6 +745,8 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
 .nav-overlay.open{display:block}
 @media(max-width:900px){
   .nav-cta{display:none}
+  .nav-cta-mobile{display:none}
+  .nav-links.open .nav-cta-mobile{display:block;margin-top:12px;background:var(--md-primary);color:#fff;text-align:center;border-radius:var(--r-full);padding:14px 24px;font-weight:500;font-size:15px;text-decoration:none;width:100%;box-sizing:border-box}
   .nav-links.open{
     display:flex!important;flex-direction:column;
     position:fixed;top:0;right:0;width:300px;height:100vh;
@@ -835,6 +838,7 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
           <a href="comunicados.html#digital-wellness">Digital Wellness</a>
         </div>
       </div>
+      <a href="admision.html" class="nav-cta-mobile">Admisión 2027</a>
     </nav>
     <a href="admision.html" class="nav-cta">Admisión 2027</a>
     <button class="nav-hamburger" aria-label="Menú">
