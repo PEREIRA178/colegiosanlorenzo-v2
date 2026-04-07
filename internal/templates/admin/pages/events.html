@@ -1,6 +1,6 @@
   <div class="card">
     <div class="card-header">
-      <h2 class="card-title">Gestión de Eventos</h2>
+      <h2 class="card-title">Gestión de Eventos y Comunicados</h2>
       <button class="topbar-btn topbar-btn-primary"
               hx-get="/admin/events/new"
               hx-target="#modal-container"
@@ -15,17 +15,11 @@
       <table>
         <thead>
           <tr>
-            <th>Título</th>
-            <th>Categoría</th>
-            <th>Urgencia</th>
-            <th>Fecha</th>
-            <th>Estado</th>
-            <th>WhatsApp</th>
-            <th>Acciones</th>
+            <th>Título</th><th>Categoría</th><th>Urgente</th><th>Fecha</th><th>Estado</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--md-outline)">
+          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--md-outline)">
             <div style="width:24px;height:24px;border:2px solid var(--md-primary);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px"></div>
             Cargando eventos...
           </td></tr>
@@ -34,3 +28,4 @@
     </div>
   </div>
   <div id="modal-container"></div>
+  <div id="toast-area" style="position:fixed;top:80px;right:24px;z-index:9999"></div>

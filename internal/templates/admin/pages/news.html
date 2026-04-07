@@ -10,21 +10,16 @@
     </div>
     <div id="news-table-wrap"
          hx-get="/admin/news?fragment=table"
-         hx-trigger="load, newsCreated from:body, newsUpdated from:body, newsDeleted from:body"
+         hx-trigger="load, eventCreated from:body, eventUpdated from:body, eventDeleted from:body"
          hx-swap="innerHTML">
       <table>
         <thead>
           <tr>
-            <th>Título</th>
-            <th>Categoría</th>
-            <th>Autor</th>
-            <th>Estado</th>
-            <th>Al Aire</th>
-            <th>Acciones</th>
+            <th>Título</th><th>Fecha</th><th>Estado</th><th>Destacada</th><th>Acciones</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td colspan="6" style="text-align:center;padding:32px;color:var(--md-outline)">
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--md-outline)">
             <div style="width:24px;height:24px;border:2px solid var(--md-primary);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px"></div>
             Cargando noticias...
           </td></tr>
@@ -33,3 +28,4 @@
     </div>
   </div>
   <div id="modal-container"></div>
+  <div id="toast-area" style="position:fixed;top:80px;right:24px;z-index:9999"></div>

@@ -11,20 +11,11 @@ import (
 	"github.com/pocketbase/pocketbase"
 )
 
-// ══════════════════════════════════════════════════════
-//  HTMX FRAGMENT: Hero Carousel
-//  GET /fragments/hero
-// ══════════════════════════════════════════════════════
-
+// GET /fragments/hero
 func HeroCarousel(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// TODO: Fetch hero slides from PocketBase multimedia collection
-		// where status = "publicado" and tagged as hero
-		// For now, return the static hero HTML
-
 		html := `<section class="hero-wrap" id="hero">
   <div class="hero-carousel">
-    <!-- Slides loaded from PocketBase -->
     <div class="hero-slide active">
       <div class="hero-slide-bg slide-grad-1"></div>
       <div class="hero-slide-content">
@@ -39,22 +30,13 @@ func HeroCarousel(cfg *config.Config) fiber.Handler {
         </div>
         <div class="hero-float-card">
           <div class="hero-stat-row">
-            <div>
-              <div class="hero-stat-num">35+</div>
-              <div class="hero-stat-label">años formando<br/>estudiantes</div>
-            </div>
-            <div>
-              <div class="hero-stat-num">3</div>
-              <div class="hero-stat-label">niveles:<br/>Básica y Media</div>
-            </div>
+            <div><div class="hero-stat-num">35+</div><div class="hero-stat-label">años formando<br/>estudiantes</div></div>
+            <div><div class="hero-stat-num">3</div><div class="hero-stat-label">niveles:<br/>Básica y Media</div></div>
           </div>
-          <div class="hero-lema-float">
-            <em>"Por el trabajo hacia la luz"</em>
-          </div>
+          <div class="hero-lema-float"><em>"Por el trabajo hacia la luz"</em></div>
         </div>
       </div>
     </div>
-    <!-- More slides dynamically loaded -->
   </div>
   <div class="hero-controls">
     <button class="hero-arrow prev" aria-label="Anterior">‹</button>
@@ -62,64 +44,82 @@ func HeroCarousel(cfg *config.Config) fiber.Handler {
     <button class="hero-arrow next" aria-label="Siguiente">›</button>
   </div>
 </section>`
-
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(html)
 	}
 }
 
-// ══════════════════════════════════════════════════════
-//  HTMX FRAGMENT: Eventos
-//  GET /fragments/eventos
-// ══════════════════════════════════════════════════════
+// cssClassForCategory maps content_block category to CSS class
+func cssClassForCategory(category, urgency string) string {
+	if urgency == "true" || category == "EMERGENCIA" {
+		return "ev-urgente"
+	}
+	switch category {
+	case "REUNIÓN":
+		return "ev-reunion"
+	case "EVENTO", "DEPORTIVO":
+		return "ev-evento"
+	case "ACADÉMICO":
+		return "ev-academico"
+	default:
+		return "ev-info"
+	}
+}
 
+type contentBlock struct {
+	ID       string
+	Title    string
+	Desc     string
+	Category string
+	Date     string
+	Urgency  bool
+	Featured bool
+	CSSClass string
+}
+
+func fetchContentBlocks(pb *pocketbase.PocketBase, filter string, limit int) []contentBlock {
+	records, err := pb.FindRecordsByFilter("content_blocks", filter, "-date", limit, 0)
+	if err != nil || len(records) == 0 {
+		return nil
+	}
+	result := make([]contentBlock, 0, len(records))
+	for _, r := range records {
+		urgency := r.GetBool("urgency")
+		urg := ""
+		if urgency {
+			urg = "true"
+		}
+		category := r.GetString("category")
+		dateStr := ""
+		dt := r.GetDateTime("date")
+		if !dt.IsZero() {
+			dateStr = dt.Time().Format("2 Jan 2006")
+		}
+		result = append(result, contentBlock{
+			ID:       r.Id,
+			Title:    r.GetString("title"),
+			Desc:     r.GetString("description"),
+			Category: category,
+			Date:     dateStr,
+			Urgency:  urgency,
+			CSSClass: cssClassForCategory(category, urg),
+		})
+	}
+	return result
+}
+
+// GET /fragments/eventos
 func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type Evento struct {
-			ID       string
-			Title    string
-			Desc     string
-			Category string
-			Date     string
-			Urgencia string
-			CSSClass string
-		}
+		blocks := fetchContentBlocks(pb,
+			"status = 'publicado' && category != 'NOTICIA'", 6)
 
-		// Fallback hardcoded data
-		fallback := []Evento{
-			{ID: "1", Title: "Simulacro de Evacuación", Desc: "Jueves 2 de abril, participación obligatoria de todos los cursos.", Category: "Emergencia", Date: "2 abr 2026", Urgencia: "critico", CSSClass: "ev-urgente"},
-			{ID: "2", Title: "Reunión de Apoderados 7mos", Desc: "Reunión del primer trimestre 2026. Asistencia obligatoria.", Category: "Reunión", Date: "17 abr 2026", Urgencia: "normal", CSSClass: "ev-reunion"},
-			{ID: "3", Title: "Campeonato de tenis padre-hijo", Desc: "Inscripciones abiertas. Una iniciativa que une familias.", Category: "Información", Date: "3 abr 2026", Urgencia: "informativo", CSSClass: "ev-info"},
-		}
-
-		var eventos []Evento
-
-		records, err := pb.FindRecordsByFilter("events", "status = 'publicado'", "-date", 6, 0)
-		if err == nil && len(records) > 0 {
-			for _, record := range records {
-				urgencia := record.GetString("urgencia")
-				cssClass := "ev-info"
-				switch urgencia {
-				case "critico":
-					cssClass = "ev-urgente"
-				case "normal":
-					cssClass = "ev-reunion"
-				}
-				dateTime := record.GetDateTime("date")
-				dateStr := dateTime.Time().Format("2 Jan 2006")
-
-				eventos = append(eventos, Evento{
-					ID:       record.Id,
-					Title:    record.GetString("title"),
-					Desc:     record.GetString("description"),
-					Category: record.GetString("category"),
-					Date:     dateStr,
-					Urgencia: urgencia,
-					CSSClass: cssClass,
-				})
+		if len(blocks) == 0 {
+			blocks = []contentBlock{
+				{ID: "1", Title: "Simulacro de Evacuación", Desc: "Jueves 2 de abril, participación obligatoria.", Category: "EMERGENCIA", Date: "2 abr 2026", Urgency: true, CSSClass: "ev-urgente"},
+				{ID: "2", Title: "Reunión de Apoderados 7mos", Desc: "Reunión primer trimestre 2026. Asistencia obligatoria.", Category: "REUNIÓN", Date: "17 abr 2026", CSSClass: "ev-reunion"},
+				{ID: "3", Title: "Campeonato de tenis padre-hijo", Desc: "Inscripciones abiertas. Una iniciativa que une familias.", Category: "EVENTO", Date: "3 abr 2026", CSSClass: "ev-info"},
 			}
-		} else {
-			eventos = fallback
 		}
 
 		var sb strings.Builder
@@ -130,9 +130,9 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		sb.WriteString(`<a href="comunicados.html" class="eventos-link reveal">Ver todos los comunicados →</a>`)
 		sb.WriteString(`</div><div class="eventos-grid">`)
 
-		for i, ev := range eventos {
+		for i, ev := range blocks {
 			urgLabel := ""
-			if ev.Urgencia == "critico" {
+			if ev.Urgency {
 				urgLabel = `<span style="font-size:11px;font-weight:600;color:#B71C1C">URGENTE</span>`
 			}
 			sb.WriteString(fmt.Sprintf(`
@@ -148,13 +148,11 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
         %s
       </div>
     </div>`,
-				ev.CSSClass,
-				delayClass(i),
+				ev.CSSClass, delayClass(i),
 				template.HTMLEscapeString(ev.Category),
 				template.HTMLEscapeString(ev.Title),
 				template.HTMLEscapeString(ev.Desc),
-				ev.Date,
-				urgLabel,
+				ev.Date, urgLabel,
 			))
 		}
 
@@ -164,42 +162,28 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	}
 }
 
-// ══════════════════════════════════════════════════════
-//  HTMX FRAGMENT: Noticias
-//  GET /fragments/noticias
-// ══════════════════════════════════════════════════════
-
+// GET /fragments/noticias
 func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type Noticia struct {
-			Title    string
-			Excerpt  string
-			Category string
-			Date     string
-		}
+		blocks := fetchContentBlocks(pb,
+			"status = 'publicado' && category = 'NOTICIA'", 3)
 
-		fallback := []Noticia{
-			{Title: "Resultados SIMCE 2025", Excerpt: "El Colegio San Lorenzo obtuvo resultados destacados en las pruebas SIMCE de 4° y 8° básico.", Category: "Institucional", Date: "28 mar 2026"},
-			{Title: "Equipo de fútbol clasifica a regionales", Excerpt: "Nuestro equipo sub-14 representará a Atacama en el campeonato regional 2026.", Category: "Deportes", Date: "25 mar 2026"},
-			{Title: "Festival de Arte EDEX 2026", Excerpt: "Más de 200 estudiantes participaron en la muestra artística anual del programa EDEX.", Category: "Cultura", Date: "20 mar 2026"},
-		}
+		type noticia struct{ Title, Excerpt, Category, Date string }
+		var noticias []noticia
 
-		var noticias []Noticia
-
-		records, err := pb.FindRecordsByFilter("news_articles", "status = 'publicado' && category != 'blog'", "-created", 3, 0)
-		if err == nil && len(records) > 0 {
-			for _, record := range records {
-				dateTime := record.GetDateTime("created")
-				dateStr := dateTime.Time().Format("2 Jan 2006")
-				noticias = append(noticias, Noticia{
-					Title:    record.GetString("title"),
-					Excerpt:  record.GetString("excerpt"),
-					Category: record.GetString("category"),
-					Date:     dateStr,
+		if len(blocks) > 0 {
+			for _, b := range blocks {
+				noticias = append(noticias, noticia{
+					Title: b.Title, Excerpt: b.Desc,
+					Category: b.Category, Date: b.Date,
 				})
 			}
 		} else {
-			noticias = fallback
+			noticias = []noticia{
+				{Title: "Resultados SIMCE 2025", Excerpt: "El Colegio San Lorenzo obtuvo resultados destacados en las pruebas SIMCE.", Category: "Institucional", Date: "28 mar 2026"},
+				{Title: "Equipo de fútbol clasifica a regionales", Excerpt: "Nuestro equipo sub-14 representará a Atacama en el campeonato regional 2026.", Category: "Deportes", Date: "25 mar 2026"},
+				{Title: "Festival de Arte EDEX 2026", Excerpt: "Más de 200 estudiantes participaron en la muestra artística anual.", Category: "Cultura", Date: "20 mar 2026"},
+			}
 		}
 
 		bgColors := []string{
@@ -207,18 +191,15 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 			"var(--md-secondary-container)",
 			"var(--md-tertiary-container)",
 		}
-		delayClasses := []string{"", " reveal-delay-1", " reveal-delay-2"}
+		delays := []string{"", " reveal-delay-1", " reveal-delay-2"}
 
 		var sb strings.Builder
-		sb.WriteString(`<section class="noticias-section" id="noticias">`)
-		sb.WriteString(`  <div class="container">`)
-		sb.WriteString(`    <p class="label-primary reveal">Noticias y Prensa</p>`)
-		sb.WriteString(`    <h2 class="headline-l reveal reveal-delay-1" style="margin-bottom:var(--sp-40)">Últimas noticias</h2>`)
-		sb.WriteString(`    <div class="noticias-grid">`)
+		sb.WriteString(`<section class="noticias-section" id="noticias"><div class="container">`)
+		sb.WriteString(`<p class="label-primary reveal">Noticias y Prensa</p>`)
+		sb.WriteString(`<h2 class="headline-l reveal reveal-delay-1" style="margin-bottom:var(--sp-40)">Últimas noticias</h2>`)
+		sb.WriteString(`<div class="noticias-grid">`)
 
 		for i, n := range noticias {
-			bg := bgColors[i%len(bgColors)]
-			dc := delayClasses[i%len(delayClasses)]
 			sb.WriteString(fmt.Sprintf(`
       <article class="noticia-card reveal%s">
         <div class="noticia-img" style="background:%s"></div>
@@ -229,8 +210,7 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
           <span class="noticia-fecha">%s</span>
         </div>
       </article>`,
-				dc,
-				bg,
+				delays[i%len(delays)], bgColors[i%len(bgColors)],
 				template.HTMLEscapeString(n.Category),
 				template.HTMLEscapeString(n.Title),
 				template.HTMLEscapeString(n.Excerpt),
@@ -238,104 +218,107 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 			))
 		}
 
-		sb.WriteString(`    </div>`)
-		sb.WriteString(`  </div>`)
-		sb.WriteString(`</section>`)
-
+		sb.WriteString(`</div></div></section>`)
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(sb.String())
 	}
 }
 
-// ══════════════════════════════════════════════════════
-//  HTMX FRAGMENT: Blog / Prensa Interna
-//  GET /fragments/blog
-// ══════════════════════════════════════════════════════
-
-func Blog(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
+// GET /fragments/comunicados — full grid for /comunicados.html
+func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		type BlogPost struct {
-			Title   string
-			Excerpt string
-			Author  string
-			Date    string
-			AlAire  bool
+		filter := c.Query("filter", "todos")
+
+		pbFilter := "status = 'publicado'"
+		switch filter {
+		case "urgente":
+			pbFilter += " && urgency = true"
+		case "reunion":
+			pbFilter += " && category = 'REUNIÓN'"
+		case "info":
+			pbFilter += " && category = 'INFORMACIÓN'"
+		case "academico":
+			pbFilter += " && category = 'ACADÉMICO'"
+		case "evento":
+			pbFilter += " && (category = 'EVENTO' || category = 'DEPORTIVO')"
 		}
 
-		fallback := []BlogPost{
-			{Title: "Innovación pedagógica en el aula", Excerpt: "Profesora María González comparte su experiencia implementando metodologías activas en 5° básico.", Author: "María González", Date: "15 mar 2026", AlAire: false},
-			{Title: "Día del libro 2026", Excerpt: "Cobertura en vivo de las actividades del Día del Libro en el Colegio San Lorenzo.", Author: "Equipo CEAL", Date: "Ahora", AlAire: true},
+		blocks := fetchContentBlocks(pb, pbFilter, 50)
+
+		// Fallback to hardcoded 8 events
+		if len(blocks) == 0 {
+			blocks = hardcodedComunicados()
 		}
-
-		var posts []BlogPost
-
-		records, err := pb.FindRecordsByFilter("news_articles", "status = 'publicado' && category = 'blog'", "-created", 2, 0)
-		if err == nil && len(records) > 0 {
-			for _, record := range records {
-				alAire := record.GetBool("al_aire")
-				dateStr := "Ahora"
-				if !alAire {
-					dateTime := record.GetDateTime("created")
-					dateStr = dateTime.Time().Format("2 Jan 2006")
-				}
-				posts = append(posts, BlogPost{
-					Title:   record.GetString("title"),
-					Excerpt: record.GetString("excerpt"),
-					Author:  record.GetString("author"),
-					Date:    dateStr,
-					AlAire:  alAire,
-				})
-			}
-		} else {
-			posts = fallback
-		}
-
-		delayClasses := []string{"", " reveal-delay-1"}
 
 		var sb strings.Builder
-		sb.WriteString(`<section class="blog-section" id="blog">`)
-		sb.WriteString(`  <div class="container">`)
-		sb.WriteString(`    <p class="label-primary reveal">Blog & Prensa Interna</p>`)
-		sb.WriteString(`    <h2 class="headline-l reveal reveal-delay-1" style="margin-bottom:var(--sp-40)">Voces de la comunidad</h2>`)
-		sb.WriteString(`    <div class="blog-grid">`)
-
-		for i, p := range posts {
-			dc := delayClasses[i%len(delayClasses)]
-			tagHTML := `<span class="blog-tag">Blog docente</span>`
-			if p.AlAire {
-				tagHTML = `<span class="blog-tag al-aire">🔴 Al aire</span>`
-			}
+		sb.WriteString(`<div class="comunicados-grid" id="comunicados-grid">`)
+		for i, b := range blocks {
+			tipo, chip, accentClass := categoryToTipo(b.Category, b.Urgency)
 			sb.WriteString(fmt.Sprintf(`
-      <article class="blog-card reveal%s">
-        <div class="blog-card-inner">
-          %s
+      <div class="comunicado-card %s reveal%s" data-tipo="%s">
+        <div class="comunicado-accent"></div>
+        <div class="comunicado-body">
+          <span class="comunicado-chip">%s</span>
           <h3>%s</h3>
           <p>%s</p>
-          <div class="blog-meta">
-            <span>%s</span>
-            <span>%s</span>
-          </div>
         </div>
-      </article>`,
-				dc,
-				tagHTML,
-				template.HTMLEscapeString(p.Title),
-				template.HTMLEscapeString(p.Excerpt),
-				template.HTMLEscapeString(p.Author),
-				p.Date,
+        <div class="comunicado-footer">
+          <span class="comunicado-fecha">%s</span>
+          <a href="#" class="comunicado-btn">Ver más →</a>
+        </div>
+      </div>`,
+				accentClass, delayClass(i%4), tipo,
+				chip,
+				template.HTMLEscapeString(b.Title),
+				template.HTMLEscapeString(b.Desc),
+				b.Date,
 			))
 		}
-
-		sb.WriteString(`    </div>`)
-		sb.WriteString(`  </div>`)
-		sb.WriteString(`</section>`)
-
+		sb.WriteString(`</div>`)
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(sb.String())
 	}
 }
 
-// Helper for staggered reveal classes
+func categoryToTipo(category string, urgency bool) (tipo, chip, accentClass string) {
+	if urgency || category == "EMERGENCIA" {
+		return "urgente", "⚠ Emergencia", "tipo-urgente"
+	}
+	switch category {
+	case "REUNIÓN":
+		return "reunion", "Reunión", "tipo-reunion"
+	case "ACADÉMICO":
+		return "academico", "Académico", "tipo-academico"
+	case "EVENTO", "DEPORTIVO":
+		return "evento", "Evento", "tipo-evento"
+	case "NOTICIA":
+		return "info", "Noticia", "tipo-info"
+	default:
+		return "info", "Información", "tipo-info"
+	}
+}
+
+func hardcodedComunicados() []contentBlock {
+	return []contentBlock{
+		{Title: "⚠ Simulacro de Evacuación — Jueves 2 de abril", Desc: "Recordamos a toda la comunidad escolar que el jueves 2 de abril se realizará el simulacro de evacuación obligatorio a las 10:00 horas. Participación de todos los cursos.", Category: "EMERGENCIA", Date: "31 de marzo, 2026", Urgency: true},
+		{Title: "Reunión de Apoderados 7° Básico", Desc: "Se cita a los apoderados de 7° año básico a reunión del primer trimestre 2026. La reunión se realizará el 17 de abril a las 18:30 hrs en la sala del curso. Asistencia obligatoria.", Category: "REUNIÓN", Date: "17 de abril, 2026"},
+		{Title: "Campeonato de Tenis Padre-Hijo", Desc: "Inscripciones abiertas para el campeonato de tenis padre-hijo, 3 de abril de 2026. Una iniciativa del Área Deportiva EDEX que une a las familias.", Category: "EVENTO", Date: "3 de abril, 2026"},
+		{Title: "Inicio año escolar 2026 — Nuevas iniciativas pedagógicas", Desc: "El Colegio San Lorenzo inicia el año escolar 2026 con importantes cambios en su propuesta pedagógica, incorporando metodologías activas y herramientas tecnológicas.", Category: "ACADÉMICO", Date: "1 de abril, 2026"},
+		{Title: "Sistema Digital Wellness — Comunicación por WhatsApp", Desc: "El colegio informa que toda la comunicación oficial con apoderados se realizará a través del sistema Digital Wellness. Los avisos llegan directamente por WhatsApp.", Category: "INFORMACIÓN", Date: "15 de marzo, 2026"},
+		{Title: "Reunión General Enseñanza Media — 6 de mayo", Desc: "Se cita a apoderados de 1° a 4° Medio a reunión general informativa del primer trimestre 2026. Miércoles 6 de mayo a las 19:00 hrs en el gimnasio.", Category: "REUNIÓN", Date: "6 de mayo, 2026"},
+		{Title: "Calendario de pruebas primer trimestre 2026 — CEAL", Desc: "El calendario de pruebas del primer trimestre 2026 está disponible en la sección CEAL. Incluye fechas de pruebas, integradoras y exámenes para todos los niveles.", Category: "ACADÉMICO", Date: "5 de marzo, 2026"},
+		{Title: "Lista de útiles escolares 2026 disponible en CEPAD", Desc: "Las listas de útiles escolares para todos los niveles del año 2026 ya están disponibles en la sección CEPAD del sitio web del colegio.", Category: "INFORMACIÓN", Date: "1 de marzo, 2026"},
+	}
+}
+
+// Blog — removed. Returns empty to avoid breaking existing route.
+func Blog(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		return c.SendString("")
+	}
+}
+
 func delayClass(i int) string {
 	if i == 0 {
 		return ""
