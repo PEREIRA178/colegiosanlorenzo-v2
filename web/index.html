@@ -98,7 +98,7 @@ body::before{
   filter:drop-shadow(0 2px 4px rgba(155,18,48,0.2));
   transition:transform var(--ease-express) 300ms;
 }
-.nav-brand:hover .nav-logo{transform:scale(1.06) rotate(-2deg)}
+.nav-brand:hover .nav-logo{transform:scale(1.08)}
 .nav-brand-text{display:flex;flex-direction:column}
 .nav-brand-name{
   font-family:var(--font-display);font-size:16px;font-weight:400;
@@ -666,7 +666,7 @@ footer{
 .nav-inner{max-width:var(--max-w);margin:0 auto;padding:0 24px;height:100%;display:flex;align-items:center;justify-content:space-between;gap:16px}
 .nav-brand{display:flex;align-items:center;gap:12px;text-decoration:none;flex-shrink:0}
 .nav-logo{width:44px;height:44px;border-radius:var(--r-sm);object-fit:contain;transition:transform 300ms var(--ease-express)}
-.nav-brand:hover .nav-logo{transform:scale(1.06) rotate(-2deg)}
+.nav-brand:hover .nav-logo{transform:scale(1.08)}
 .nav-brand-name{font-family:var(--font-display);font-size:16px;color:var(--md-on-surface);line-height:1.1}
 .nav-brand-sub{font-size:10px;font-weight:500;letter-spacing:.12em;color:var(--md-outline);text-transform:uppercase}
 .nav-links{display:flex;align-items:center;gap:2px}
@@ -1284,14 +1284,17 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
   navLinks.querySelectorAll('.nav-item-group .nav-link-main').forEach(function(link){
     link.addEventListener('click', function(e){
       if(navLinks.classList.contains('open') && window.innerWidth <= 900){
-        e.preventDefault();
         var group = this.closest('.nav-item-group');
-        var wasExpanded = group.classList.contains('expanded');
-        // collapse siblings
+        if(group.classList.contains('expanded')){
+          // 2nd tap on already-open group → navigate (allow default)
+          return;
+        }
+        // 1st tap → expand, prevent navigation
+        e.preventDefault();
         navLinks.querySelectorAll('.nav-item-group.expanded').forEach(function(g){
           g.classList.remove('expanded');
         });
-        if(!wasExpanded) group.classList.add('expanded');
+        group.classList.add('expanded');
       }
     });
   });
