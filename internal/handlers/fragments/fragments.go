@@ -29,7 +29,7 @@ func HeroCarousel(cfg *config.Config) fiber.Handler {
       <div class="hero-slide-bg slide-grad-1"></div>
       <div class="hero-slide-content">
         <div class="hero-text">
-          <p class="hero-eyebrow">Copiapó, Atacama · desde 1968</p>
+          <p class="hero-eyebrow">Copiapó, Atacama · desde 1990</p>
           <h1 class="hero-title">Per laborem<br/><em>ad lucem</em></h1>
           <p class="hero-desc">Formando generaciones con excelencia académica, valores humanos y el espíritu del norte de Chile.</p>
           <div class="hero-actions">
