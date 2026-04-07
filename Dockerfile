@@ -8,22 +8,21 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-# Compilamos
 RUN go build -v -o /run-app ./cmd/server
 
 # ====================== RUNTIME STAGE ======================
 FROM debian:bookworm-slim
 
-# Certificados + herramientas mínimas
-RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y ca-certificates tzdata && rm -rf /var/lib/apt/lists/*
 
-# Binario de la app
-COPY --from=builder /run-app /usr/local/bin/run-app
+WORKDIR /app
 
-# ←←← ARCHIVOS ESTÁTICOS Y TEMPLATES (esto es lo que faltaba)
-COPY --from=builder /usr/src/app/web /web
-COPY --from=builder /usr/src/app/internal/templates /internal/templates
+COPY --from=builder /run-app /app/run-app
+COPY --from=builder /usr/src/app/web /app/web
+COPY --from=builder /usr/src/app/internal/templates /app/internal/templates
+
+RUN mkdir -p /app/web/static /app/pb_data
 
 EXPOSE 3000
 
-CMD ["run-app", "serve"]
+CMD ["/app/run-app", "serve"]
