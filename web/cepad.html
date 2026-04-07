@@ -218,6 +218,8 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
 
 .nav-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:199;backdrop-filter:blur(4px)}
 .nav-overlay.open{display:block}
+.nav-hamburger{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:8px}
+.nav-hamburger span{display:block;width:24px;height:2px;background:var(--md-on-surface);border-radius:2px;transition:all 200ms}
 @media(max-width:900px){
   .nav-hamburger{display:flex!important}
   .nav-links.open{

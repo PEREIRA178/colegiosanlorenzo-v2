@@ -432,12 +432,13 @@ body::before{
   max-width:var(--max-w);margin:var(--sp-48) auto 0;
   display:grid;grid-template-columns:repeat(5,1fr);gap:var(--sp-16);
 }
+.edex-card-link{display:block;text-decoration:none;color:inherit}
 .edex-card{
   background:var(--md-surface-bright);border-radius:var(--r-xl);
   padding:var(--sp-32) var(--sp-20);
   border:1px solid var(--md-outline-variant);text-align:center;
   transition:background var(--ease-express) 300ms,transform var(--ease-express) 300ms,box-shadow var(--ease-express) 300ms;
-  cursor:default;
+  cursor:pointer;
 }
 .edex-card:hover{background:var(--md-primary);transform:translateY(-6px);box-shadow:var(--elev-4);border-color:transparent}
 .edex-icon{
