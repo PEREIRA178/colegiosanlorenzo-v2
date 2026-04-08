@@ -276,30 +276,16 @@ textarea.form-input{resize:vertical;min-height:80px}
       </div>
       <table>
         <thead>
-          <tr><th>Evento</th><th>Categoría</th><th>Fecha</th><th>Estado</th><th>WhatsApp</th></tr>
+          <tr><th>Título</th><th>Categoría</th><th>Urgente</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr>
         </thead>
-        <tbody hx-get="/admin/events?fragment=table" hx-trigger="load" hx-swap="innerHTML">
-          <tr>
-            <td>Simulacro de Evacuación</td>
-            <td>Emergencia</td>
-            <td>2 abr 2026</td>
-            <td><span class="badge badge-success">Publicado</span></td>
-            <td><span class="badge badge-info">Enviado</span></td>
-          </tr>
-          <tr>
-            <td>Reunión Apoderados 7mos</td>
-            <td>Reunión</td>
-            <td>17 abr 2026</td>
-            <td><span class="badge badge-warning">Borrador</span></td>
-            <td><span class="badge badge-danger">Pendiente</span></td>
-          </tr>
-          <tr>
-            <td>Campeonato tenis padre-hijo</td>
-            <td>Información</td>
-            <td>3 abr 2026</td>
-            <td><span class="badge badge-success">Publicado</span></td>
-            <td><span class="badge badge-success">Entregado</span></td>
-          </tr>
+        <tbody id="dash-events-tbody"
+               hx-get="/admin/events?fragment=rows"
+               hx-trigger="load"
+               hx-swap="innerHTML">
+          <tr><td colspan="5" style="text-align:center;padding:16px;color:var(--md-outline)">
+            <div style="width:18px;height:18px;border:2px solid var(--md-primary);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;display:inline-block;vertical-align:middle;margin-right:8px"></div>
+            Cargando...
+          </td></tr>
         </tbody>
       </table>
     </div>

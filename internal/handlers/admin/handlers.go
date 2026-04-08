@@ -86,12 +86,11 @@ func Dashboard(cfg *config.Config) fiber.Handler {
 
 func MultimediaList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if c.Query("fragment") != "table" {
+		if c.Query("fragment") != "rows" {
 			return c.SendFile("./internal/templates/admin/pages/multimedia.html")
 		}
 		records, err := pb.FindRecordsByFilter("multimedia", "", "-created", 100, 0)
 		var sb strings.Builder
-		sb.WriteString(`<table><thead><tr><th>Nombre</th><th>Tipo</th><th>Duración</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>`)
 		if err != nil || len(records) == 0 {
 			sb.WriteString(`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--md-outline)">Sin archivos multimedia</td></tr>`)
 		} else {
@@ -125,7 +124,6 @@ func MultimediaList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler
 				))
 			}
 		}
-		sb.WriteString(`</tbody></table>`)
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(sb.String())
 	}
@@ -275,16 +273,15 @@ func MultimediaDelete(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handl
 
 func EventsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if c.Query("fragment") != "table" {
+		if c.Query("fragment") != "rows" {
 			return c.SendFile("./internal/templates/admin/pages/events.html")
 		}
 		records, err := pb.FindRecordsByFilter("content_blocks",
 			"category != 'NOTICIA'", "-date", 100, 0)
 
 		var sb strings.Builder
-		sb.WriteString(`<table><thead><tr><th>Título</th><th>Categoría</th><th>Urgente</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>`)
 		if err != nil || len(records) == 0 {
-			sb.WriteString(`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--md-outline)">Sin eventos</td></tr>`)
+			sb.WriteString(`<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--md-outline)">Sin eventos — agrega uno con el botón de arriba</td></tr>`)
 		} else {
 			for _, r := range records {
 				status := r.GetString("status")
@@ -317,7 +314,6 @@ func EventsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 				))
 			}
 		}
-		sb.WriteString(`</tbody></table>`)
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(sb.String())
 	}
@@ -508,14 +504,13 @@ func eventFormHTML(id, title, description, category, status, date string, urgenc
 
 func NewsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if c.Query("fragment") != "table" {
+		if c.Query("fragment") != "rows" {
 			return c.SendFile("./internal/templates/admin/pages/news.html")
 		}
 		records, err := pb.FindRecordsByFilter("content_blocks",
 			"category = 'NOTICIA'", "-date", 50, 0)
 
 		var sb strings.Builder
-		sb.WriteString(`<table><thead><tr><th>Título</th><th>Fecha</th><th>Estado</th><th>Destacada</th><th>Acciones</th></tr></thead><tbody>`)
 		if err != nil || len(records) == 0 {
 			sb.WriteString(`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--md-outline)">Sin noticias</td></tr>`)
 		} else {
@@ -549,7 +544,6 @@ func NewsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 				))
 			}
 		}
-		sb.WriteString(`</tbody></table>`)
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(sb.String())
 	}
