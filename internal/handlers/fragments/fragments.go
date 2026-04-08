@@ -83,7 +83,7 @@ type contentBlock struct {
 }
 
 func fetchContentBlocks(pb *pocketbase.PocketBase, filter string, limit int) []contentBlock {
-	records, err := pb.FindRecordsByFilter("content_blocks", filter, "-date", limit, 0)
+	records, err := pb.FindRecordsByFilter("content_blocks", filter, "-urgency,-date", limit, 0)
 	if err != nil || len(records) == 0 {
 		return nil
 	}
@@ -264,7 +264,7 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		pbFilter := "status = 'publicado'"
 		switch filter {
 		case "urgente":
-			pbFilter += " && urgency = true"
+			pbFilter += " && category = 'EMERGENCIA'"
 		case "reunion":
 			pbFilter += " && category = 'REUNIÓN'"
 		case "info":
@@ -282,7 +282,7 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 
 		offset := (page - 1) * pageSize
-		records, err := pb.FindRecordsByFilter("content_blocks", pbFilter, "-date", pageSize+1, offset)
+		records, err := pb.FindRecordsByFilter("content_blocks", pbFilter, "-urgency,-date", pageSize+1, offset)
 
 		var blocks []contentBlock
 		if err == nil {

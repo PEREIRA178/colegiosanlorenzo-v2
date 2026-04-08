@@ -181,7 +181,7 @@ func MultimediaCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handl
 		c.Set("HX-Trigger", "mediaCreated")
 		c.Set("HX-Reswap", "innerHTML")
 		document := `<div class="toast toast-success" id="toast-area">✅ Archivo guardado</div>
-<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';document.getElementById('toast-area').remove()},1500)</script>`
+<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';var _ta=document.getElementById('toast-area');if(_ta)_ta.innerHTML=''},1500)</script>`
 		return c.SendString(document)
 	}
 }
@@ -250,7 +250,7 @@ func MultimediaUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handl
 		}
 		c.Set("HX-Trigger", "mediaUpdated")
 		return c.SendString(`<div class="toast toast-success" id="toast-area">✅ Actualizado
-<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';document.getElementById('toast-area').remove()},1500)</script></div>`)
+<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';var _ta=document.getElementById('toast-area');if(_ta)_ta.innerHTML=''},1500)</script></div>`)
 	}
 }
 
@@ -321,7 +321,7 @@ func EventsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 func EventForm(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		html := eventFormHTML("", "", "", "", "", "", "", false)
+		html := eventFormHTML("", "", "", "", "", "", "")
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(html)
 	}
@@ -337,7 +337,7 @@ func EventCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		r.Set("title", c.FormValue("title"))
 		r.Set("description", c.FormValue("description"))
 		r.Set("category", c.FormValue("category"))
-		r.Set("urgency", c.FormValue("urgency") == "on")
+		r.Set("urgency", c.FormValue("category") == "EMERGENCIA")
 		if ds := c.FormValue("date"); ds != "" {
 			if t, err2 := time.Parse("2006-01-02T15:04", ds); err2 == nil {
 				r.Set("date", t.UTC())
@@ -353,7 +353,7 @@ func EventCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 		c.Set("HX-Trigger", "eventCreated")
 		return c.SendString(`<div class="toast toast-success" id="toast-area">✅ Evento creado
-<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';document.getElementById('toast-area')?.remove()},1500)</script></div>`)
+<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';var _ta=document.getElementById('toast-area');if(_ta)_ta.innerHTML=''},1500)</script></div>`)
 	}
 }
 
@@ -375,7 +375,7 @@ func EventEdit(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		} else {
 			html = eventFormHTML(r.Id, r.GetString("title"), r.GetString("description"),
 				r.GetString("category"), r.GetString("status"), dateStr,
-				r.GetString("pdf_url"), r.GetBool("urgency"))
+				r.GetString("pdf_url"))
 		}
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(html)
@@ -392,7 +392,7 @@ func EventUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		r.Set("title", c.FormValue("title"))
 		r.Set("description", c.FormValue("description"))
 		r.Set("category", c.FormValue("category"))
-		r.Set("urgency", c.FormValue("urgency") == "on")
+		r.Set("urgency", c.FormValue("category") == "EMERGENCIA")
 		if ds := c.FormValue("date"); ds != "" {
 			if t, err2 := time.Parse("2006-01-02T15:04", ds); err2 == nil {
 				r.Set("date", t.UTC())
@@ -408,7 +408,7 @@ func EventUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 		c.Set("HX-Trigger", "eventUpdated")
 		return c.SendString(`<div class="toast toast-success" id="toast-area">✅ Evento actualizado
-<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';document.getElementById('toast-area')?.remove()},1500)</script></div>`)
+<script>setTimeout(()=>{document.getElementById('modal-container').innerHTML='';var _ta=document.getElementById('toast-area');if(_ta)_ta.innerHTML=''},1500)</script></div>`)
 	}
 }
 
@@ -443,8 +443,9 @@ func EventPublish(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	}
 }
 
-// eventFormHTML builds the create/edit modal form for events (all categories except NOTICIA)
-func eventFormHTML(id, title, description, category, status, date, pdfUrl string, urgency bool) string {
+// eventFormHTML builds the create/edit modal form for events (all categories except NOTICIA).
+// Urgency is auto-derived from category=EMERGENCIA — no checkbox needed.
+func eventFormHTML(id, title, description, category, status, date, pdfUrl string) string {
 	method := `hx-post="/admin/events"`
 	if id != "" {
 		method = fmt.Sprintf(`hx-put="/admin/events/%s"`, id)
@@ -458,11 +459,6 @@ func eventFormHTML(id, title, description, category, status, date, pdfUrl string
 			selected = " selected"
 		}
 		catOpts.WriteString(fmt.Sprintf(`<option value="%s"%s>%s</option>`, cat, selected, cat))
-	}
-
-	urgChecked := ""
-	if urgency {
-		urgChecked = " checked"
 	}
 
 	return fmt.Sprintf(`<div class="modal-overlay" onclick="this.remove()">
@@ -485,13 +481,7 @@ func eventFormHTML(id, title, description, category, status, date, pdfUrl string
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-field"><label>Fecha</label><input type="datetime-local" name="date" value="%s" class="form-input"/></div>
-        <div class="form-field" style="justify-content:flex-end;flex-direction:row;align-items:center;gap:8px;padding-top:24px">
-          <input type="checkbox" name="urgency" id="urgency-check"%s style="width:16px;height:16px"/>
-          <label for="urgency-check" style="font-size:13px;font-weight:500">Urgente</label>
-        </div>
-      </div>
+      <div class="form-field"><label>Fecha</label><input type="datetime-local" name="date" value="%s" class="form-input"/></div>
       <div class="modal-actions">
         <button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="topbar-btn topbar-btn-outline">Cancelar</button>
         <button type="submit" class="topbar-btn topbar-btn-primary">Guardar</button>
@@ -509,7 +499,6 @@ func eventFormHTML(id, title, description, category, status, date, pdfUrl string
 		sel(status, "publicado"),
 		sel(status, "archivado"),
 		date,
-		urgChecked,
 	)
 }
 
