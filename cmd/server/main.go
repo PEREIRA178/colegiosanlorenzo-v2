@@ -88,6 +88,7 @@ func main() {
 	frag.Get("/comunicados", fragments.Comunicados(cfg, pb))
 	frag.Get("/blog", fragments.Blog(cfg, pb))
 
+	app.Get("/noticias/:id", web.NoticiaHandler(cfg, pb))
 	app.Get("/rss.xml", web.RSSFeed(cfg))
 
 	// ── DEVICE / WS ──

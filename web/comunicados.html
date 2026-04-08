@@ -2,6 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
+<link rel="icon" href="/static/logo.webp" type="image/webp"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Comunicados — Comunicación Familia · Colegio San Lorenzo · Copiapó</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
@@ -91,6 +92,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;bac
 .tipo-info .comunicado-accent{background:#2E7D32}
 .tipo-academico .comunicado-accent{background:#E65100}
 .tipo-evento .comunicado-accent{background:#7B1FA2}
+.tipo-deportivo .comunicado-accent{background:#00695C}
+.tipo-deportivo .comunicado-chip{background:#E0F2F1;color:#00695C}
+/* SEARCH */
+.search-wrap{position:relative;margin-bottom:16px}
+.search-input{width:100%;padding:11px 16px 11px 40px;border-radius:9999px;border:1.5px solid var(--md-outline-variant);background:var(--md-surface-bright);font-size:14px;font-family:var(--font-body);color:var(--md-on-surface);outline:none;transition:border-color 200ms}
+.search-input:focus{border-color:var(--md-primary)}
+.search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:16px;height:16px;pointer-events:none;color:var(--md-outline)}
 .comunicado-body{padding:24px}
 .comunicado-chip{
   display:inline-block;font-size:10px;font-weight:600;letter-spacing:.08em;
@@ -379,7 +387,11 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
   <div class="container">
     <p class="label-primary reveal">Avisos recientes</p>
     <h2 class="headline-l reveal reveal-delay-1" style="margin:12px 0 0">Comunicados</h2>
-    <div class="filtro-row" style="margin-top:28px">
+    <div class="search-wrap" style="margin-top:28px;max-width:480px">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search-input" class="search-input" type="search" placeholder="Buscar comunicados..." oninput="buscarHTMX()" autocomplete="off"/>
+    </div>
+    <div class="filtro-row" style="margin-top:12px">
       <span style="font-size:12px;color:var(--md-outline);margin-right:4px">Filtrar:</span>
       <button class="filtro-chip active" onclick="filtrarHTMX('todos',this)">Todos</button>
       <button class="filtro-chip" onclick="filtrarHTMX('urgente',this)">Urgentes</button>
@@ -403,10 +415,26 @@ footer{background:var(--md-inverse-surface);color:rgba(255,255,255,0.55);padding
   </div>
 </section>
 <script>
+var _currentFilter = 'todos';
+var _searchTimer = null;
+
 function filtrarHTMX(tipo, btn) {
+  _currentFilter = tipo;
   document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
-  htmx.ajax('GET', '/fragments/comunicados?filter=' + tipo, {target:'#comunicados-list', swap:'innerHTML'});
+  _cargarComunicados();
+}
+
+function buscarHTMX() {
+  clearTimeout(_searchTimer);
+  _searchTimer = setTimeout(_cargarComunicados, 350);
+}
+
+function _cargarComunicados() {
+  var q = (document.getElementById('search-input').value || '').trim();
+  var url = '/fragments/comunicados?filter=' + encodeURIComponent(_currentFilter);
+  if (q) url += '&q=' + encodeURIComponent(q);
+  htmx.ajax('GET', url, {target:'#comunicados-list', swap:'innerHTML'});
 }
 </script>
 

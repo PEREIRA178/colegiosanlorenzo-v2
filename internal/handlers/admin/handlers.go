@@ -321,7 +321,7 @@ func EventsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 func EventForm(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		html := eventFormHTML("", "", "", "", "", "", false)
+		html := eventFormHTML("", "", "", "", "", "", "", false)
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(html)
 	}
@@ -345,6 +345,9 @@ func EventCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 		r.Set("featured", c.FormValue("featured") == "on")
 		r.Set("status", c.FormValue("status"))
+		r.Set("pdf_url", c.FormValue("pdf_url"))
+		r.Set("image_url", c.FormValue("image_url"))
+		r.Set("body", c.FormValue("body"))
 		if err := pb.Save(r); err != nil {
 			return c.SendString(`<div class="toast toast-error">Error guardando</div>`)
 		}
@@ -365,15 +368,15 @@ func EventEdit(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		if dt := r.GetDateTime("date"); !dt.IsZero() {
 			dateStr = dt.Time().Format("2006-01-02T15:04")
 		}
-		html := eventFormHTML(
-			r.Id,
-			r.GetString("title"),
-			r.GetString("description"),
-			r.GetString("category"),
-			r.GetString("status"),
-			dateStr,
-			r.GetBool("urgency"),
-		)
+		var html string
+		if r.GetString("category") == "NOTICIA" {
+			html = newsFormHTML(r.Id, r.GetString("title"), r.GetString("description"),
+				r.GetString("status"), dateStr, r.GetString("image_url"), r.GetString("body"))
+		} else {
+			html = eventFormHTML(r.Id, r.GetString("title"), r.GetString("description"),
+				r.GetString("category"), r.GetString("status"), dateStr,
+				r.GetString("pdf_url"), r.GetBool("urgency"))
+		}
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(html)
 	}
@@ -397,6 +400,9 @@ func EventUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 		r.Set("featured", c.FormValue("featured") == "on")
 		r.Set("status", c.FormValue("status"))
+		r.Set("pdf_url", c.FormValue("pdf_url"))
+		r.Set("image_url", c.FormValue("image_url"))
+		r.Set("body", c.FormValue("body"))
 		if err := pb.Save(r); err != nil {
 			return c.SendString(`<div class="toast toast-error">Error actualizando</div>`)
 		}
@@ -437,17 +443,14 @@ func EventPublish(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	}
 }
 
-// eventFormHTML builds the create/edit modal form
-func eventFormHTML(id, title, description, category, status, date string, urgency bool) string {
-	action := "/admin/events"
+// eventFormHTML builds the create/edit modal form for events (all categories except NOTICIA)
+func eventFormHTML(id, title, description, category, status, date, pdfUrl string, urgency bool) string {
 	method := `hx-post="/admin/events"`
 	if id != "" {
-		action = fmt.Sprintf("/admin/events/%s", id)
 		method = fmt.Sprintf(`hx-put="/admin/events/%s"`, id)
 	}
-	_ = action
 
-	cats := []string{"EMERGENCIA", "REUNIÓN", "INFORMACIÓN", "ACADÉMICO", "EVENTO", "DEPORTIVO", "NOTICIA"}
+	cats := []string{"EMERGENCIA", "REUNIÓN", "INFORMACIÓN", "ACADÉMICO", "EVENTO", "DEPORTIVO"}
 	var catOpts strings.Builder
 	for _, cat := range cats {
 		selected := ""
@@ -470,7 +473,8 @@ func eventFormHTML(id, title, description, category, status, date string, urgenc
     </div>
     <form %s hx-target="#toast-area" hx-swap="innerHTML">
       <div class="form-field"><label>Título</label><input type="text" name="title" value="%s" required class="form-input" placeholder="Título del comunicado"/></div>
-      <div class="form-field"><label>Descripción</label><textarea name="description" class="form-input" rows="3" placeholder="Descripción...">%s</textarea></div>
+      <div class="form-field"><label>Descripción</label><textarea name="description" class="form-input" rows="3" placeholder="Descripción breve...">%s</textarea></div>
+      <div class="form-field"><label>Link PDF (opcional)</label><input type="url" name="pdf_url" value="%s" class="form-input" placeholder="https://... enlace al comunicado PDF"/></div>
       <div class="form-row">
         <div class="form-field"><label>Categoría</label><select name="category" class="form-input">%s</select></div>
         <div class="form-field"><label>Estado</label>
@@ -499,12 +503,61 @@ func eventFormHTML(id, title, description, category, status, date string, urgenc
 		method,
 		template.HTMLEscapeString(title),
 		template.HTMLEscapeString(description),
+		template.HTMLEscapeString(pdfUrl),
 		catOpts.String(),
 		sel(status, "borrador"),
 		sel(status, "publicado"),
 		sel(status, "archivado"),
 		date,
 		urgChecked,
+	)
+}
+
+// newsFormHTML builds the create/edit modal form for noticias (category=NOTICIA only)
+func newsFormHTML(id, title, description, status, date, imageUrl, body string) string {
+	method := `hx-post="/admin/news"`
+	if id != "" {
+		method = fmt.Sprintf(`hx-put="/admin/news/%s"`, id)
+	}
+	return fmt.Sprintf(`<div class="modal-overlay" onclick="this.remove()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>%s</h3>
+      <button onclick="document.getElementById('modal-container').innerHTML=''" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--md-outline)">✕</button>
+    </div>
+    <form %s hx-target="#toast-area" hx-swap="innerHTML">
+      <input type="hidden" name="category" value="NOTICIA"/>
+      <div class="form-field"><label>Título</label><input type="text" name="title" value="%s" required class="form-input" placeholder="Título de la noticia"/></div>
+      <div class="form-field"><label>Resumen (aparece en la tarjeta)</label><textarea name="description" class="form-input" rows="2" placeholder="Resumen breve...">%s</textarea></div>
+      <div class="form-field"><label>Contenido completo</label><textarea name="body" class="form-input" rows="6" placeholder="Escribe el artículo completo aquí...">%s</textarea></div>
+      <div class="form-field"><label>URL Foto principal</label><input type="url" name="image_url" value="%s" class="form-input" placeholder="https://... enlace a la imagen"/></div>
+      <div class="form-row">
+        <div class="form-field"><label>Fecha</label><input type="datetime-local" name="date" value="%s" class="form-input"/></div>
+        <div class="form-field"><label>Estado</label>
+          <select name="status" class="form-input">
+            <option value="borrador"%s>Borrador</option>
+            <option value="publicado"%s>Publicado</option>
+            <option value="archivado"%s>Archivado</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" onclick="document.getElementById('modal-container').innerHTML=''" class="topbar-btn topbar-btn-outline">Cancelar</button>
+        <button type="submit" class="topbar-btn topbar-btn-primary">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>`,
+		map[bool]string{true: "Editar Noticia", false: "Nueva Noticia"}[id != ""],
+		method,
+		template.HTMLEscapeString(title),
+		template.HTMLEscapeString(description),
+		template.HTMLEscapeString(body),
+		template.HTMLEscapeString(imageUrl),
+		date,
+		sel(status, "borrador"),
+		sel(status, "publicado"),
+		sel(status, "archivado"),
 	)
 }
 
@@ -559,13 +612,12 @@ func NewsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 func NewsForm(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		html := eventFormHTML("", "", "", "NOTICIA", "borrador", "", false)
+		html := newsFormHTML("", "", "", "borrador", "", "", "")
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(html)
 	}
 }
 
-// News create/edit/delete/update reuse Events handlers since both use content_blocks
 func NewsCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return EventCreate(cfg, pb)
 }

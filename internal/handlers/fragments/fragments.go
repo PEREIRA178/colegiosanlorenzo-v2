@@ -3,6 +3,7 @@ package fragments
 import (
 	"fmt"
 	"html/template"
+	"net/url"
 	"strings"
 
 	"csl-system/internal/config"
@@ -57,8 +58,10 @@ func cssClassForCategory(category, urgency string) string {
 	switch category {
 	case "REUNIÓN":
 		return "ev-reunion"
-	case "EVENTO", "DEPORTIVO":
+	case "EVENTO":
 		return "ev-evento"
+	case "DEPORTIVO":
+		return "ev-deportivo"
 	case "ACADÉMICO":
 		return "ev-academico"
 	default:
@@ -75,6 +78,8 @@ type contentBlock struct {
 	Urgency  bool
 	Featured bool
 	CSSClass string
+	PdfURL   string
+	ImageURL string
 }
 
 func fetchContentBlocks(pb *pocketbase.PocketBase, filter string, limit int) []contentBlock {
@@ -91,8 +96,7 @@ func fetchContentBlocks(pb *pocketbase.PocketBase, filter string, limit int) []c
 		}
 		category := r.GetString("category")
 		dateStr := ""
-		dt := r.GetDateTime("date")
-		if !dt.IsZero() {
+		if dt := r.GetDateTime("date"); !dt.IsZero() {
 			dateStr = dt.Time().Format("2 Jan 2006")
 		}
 		result = append(result, contentBlock{
@@ -103,6 +107,8 @@ func fetchContentBlocks(pb *pocketbase.PocketBase, filter string, limit int) []c
 			Date:     dateStr,
 			Urgency:  urgency,
 			CSSClass: cssClassForCategory(category, urg),
+			PdfURL:   r.GetString("pdf_url"),
+			ImageURL: r.GetString("image_url"),
 		})
 	}
 	return result
@@ -131,9 +137,13 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		sb.WriteString(`</div><div class="eventos-grid">`)
 
 		for i, ev := range blocks {
-			urgLabel := ""
+			footerRight := ""
 			if ev.Urgency {
-				urgLabel = `<span style="font-size:11px;font-weight:600;color:#B71C1C">URGENTE</span>`
+				footerRight = `<span style="font-size:11px;font-weight:600;color:#B71C1C">URGENTE</span>`
+			}
+			if ev.PdfURL != "" {
+				footerRight = fmt.Sprintf(`<a href="%s" target="_blank" rel="noopener" style="font-size:12px;font-weight:500;color:var(--md-primary);text-decoration:none">Ver comunicado →</a>`,
+					template.HTMLEscapeString(ev.PdfURL))
 			}
 			sb.WriteString(fmt.Sprintf(`
     <div class="evento-card %s reveal visible%s">
@@ -152,7 +162,7 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 				template.HTMLEscapeString(ev.Category),
 				template.HTMLEscapeString(ev.Title),
 				template.HTMLEscapeString(ev.Desc),
-				ev.Date, urgLabel,
+				ev.Date, footerRight,
 			))
 		}
 
@@ -168,28 +178,28 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		blocks := fetchContentBlocks(pb,
 			"status = 'publicado' && category = 'NOTICIA'", 3)
 
-		type noticia struct{ Title, Excerpt, Category, Date string }
+		type noticia struct{ ID, Title, Excerpt, Category, Date, ImageURL string }
 		var noticias []noticia
 
 		if len(blocks) > 0 {
 			for _, b := range blocks {
 				noticias = append(noticias, noticia{
-					Title: b.Title, Excerpt: b.Desc,
-					Category: b.Category, Date: b.Date,
+					ID: b.ID, Title: b.Title, Excerpt: b.Desc,
+					Category: b.Category, Date: b.Date, ImageURL: b.ImageURL,
 				})
 			}
 		} else {
 			noticias = []noticia{
-				{Title: "Resultados SIMCE 2025", Excerpt: "El Colegio San Lorenzo obtuvo resultados destacados en las pruebas SIMCE.", Category: "Institucional", Date: "28 mar 2026"},
-				{Title: "Equipo de fútbol clasifica a regionales", Excerpt: "Nuestro equipo sub-14 representará a Atacama en el campeonato regional 2026.", Category: "Deportes", Date: "25 mar 2026"},
-				{Title: "Festival de Arte EDEX 2026", Excerpt: "Más de 200 estudiantes participaron en la muestra artística anual.", Category: "Cultura", Date: "20 mar 2026"},
+				{ID: "", Title: "Resultados SIMCE 2025 — Colegio San Lorenzo entre los mejores de Atacama", Excerpt: "El Colegio San Lorenzo obtuvo resultados destacados en las pruebas SIMCE de 4° y 8° básico, posicionándose entre los establecimientos de mejor rendimiento en la Región de Atacama.", Category: "NOTICIA", Date: "28 Mar 2026"},
+				{ID: "", Title: "Equipo sub-14 clasifica al Campeonato Regional de Fútbol", Excerpt: "Nuestro equipo de fútbol sub-14 representará a Atacama en el campeonato regional 2026 tras ganar la etapa comunal con resultados históricos.", Category: "NOTICIA", Date: "25 Mar 2026"},
+				{ID: "", Title: "Festival de Arte EDEX 2026 — Más de 200 estudiantes en escena", Excerpt: "Más de 200 estudiantes participaron en la muestra artística anual del programa EDEX, mostrando sus talentos en música, danza, teatro y artes visuales.", Category: "NOTICIA", Date: "20 Mar 2026"},
 			}
 		}
 
 		bgColors := []string{
 			"var(--md-primary-container)",
 			"var(--md-secondary-container)",
-			"var(--md-tertiary-container)",
+			"var(--md-surface-container-high)",
 		}
 		delays := []string{"", " reveal-delay-1", " reveal-delay-2"}
 
@@ -204,9 +214,18 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 			if i == 0 {
 				featuredClass = " noticia-featured"
 			}
+			thumbInner := ""
+			if n.ImageURL != "" {
+				thumbInner = fmt.Sprintf(`<img src="%s" style="width:100%%;height:100%%;object-fit:cover" alt="%s"/>`,
+					template.HTMLEscapeString(n.ImageURL), template.HTMLEscapeString(n.Title))
+			}
+			leerHref := "#"
+			if n.ID != "" {
+				leerHref = "/noticias/" + n.ID
+			}
 			sb.WriteString(fmt.Sprintf(`
       <article class="noticia-card%s reveal visible%s">
-        <div class="noticia-thumb" style="background:%s"></div>
+        <div class="noticia-thumb" style="background:%s">%s</div>
         <div class="noticia-body">
           <span class="noticia-cat">%s</span>
           <h3>%s</h3>
@@ -214,14 +233,14 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
         </div>
         <div class="noticia-meta">
           <span class="noticia-fecha">%s</span>
-          <a href="#" class="noticia-leer">Leer más →</a>
+          <a href="%s" class="noticia-leer">Leer más →</a>
         </div>
       </article>`,
-				featuredClass, delays[i%len(delays)], bgColors[i%len(bgColors)],
+				featuredClass, delays[i%len(delays)], bgColors[i%len(bgColors)], thumbInner,
 				template.HTMLEscapeString(n.Category),
 				template.HTMLEscapeString(n.Title),
 				template.HTMLEscapeString(n.Excerpt),
-				n.Date,
+				n.Date, leerHref,
 			))
 		}
 
@@ -235,6 +254,12 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		filter := c.Query("filter", "todos")
+		q := strings.TrimSpace(c.Query("q", ""))
+		page := c.QueryInt("page", 1)
+		if page < 1 {
+			page = 1
+		}
+		const pageSize = 12
 
 		pbFilter := "status = 'publicado'"
 		switch filter {
@@ -251,20 +276,108 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		case "deportivo":
 			pbFilter += " && category = 'DEPORTIVO'"
 		}
+		if q != "" {
+			safeQ := strings.ReplaceAll(strings.ReplaceAll(q, "'", ""), "\\", "")
+			pbFilter += fmt.Sprintf(" && (title ~ '%s' || description ~ '%s')", safeQ, safeQ)
+		}
 
-		blocks := fetchContentBlocks(pb, pbFilter, 50)
+		offset := (page - 1) * pageSize
+		records, err := pb.FindRecordsByFilter("content_blocks", pbFilter, "-date", pageSize+1, offset)
 
-		// Fallback to hardcoded 8 events
+		var blocks []contentBlock
+		if err == nil {
+			for _, r := range records {
+				urgency := r.GetBool("urgency")
+				urg := ""
+				if urgency {
+					urg = "true"
+				}
+				cat := r.GetString("category")
+				dateStr := ""
+				if dt := r.GetDateTime("date"); !dt.IsZero() {
+					dateStr = dt.Time().Format("2 Jan 2006")
+				}
+				blocks = append(blocks, contentBlock{
+					ID:       r.Id,
+					Title:    r.GetString("title"),
+					Desc:     r.GetString("description"),
+					Category: cat,
+					Date:     dateStr,
+					Urgency:  urgency,
+					CSSClass: cssClassForCategory(cat, urg),
+					PdfURL:   r.GetString("pdf_url"),
+					ImageURL: r.GetString("image_url"),
+				})
+			}
+		}
+
+		hasMore := len(blocks) > pageSize
+		if hasMore {
+			blocks = blocks[:pageSize]
+		}
+
+		// Empty state for specific filter (not fallback)
+		if len(blocks) == 0 && filter != "todos" {
+			c.Set("Content-Type", "text/html; charset=utf-8")
+			if page == 1 {
+				return c.SendString(`<div class="comunicados-grid" id="comunicados-grid"><div style="grid-column:1/-1;text-align:center;padding:56px 24px;color:var(--md-outline)"><p style="font-size:15px">No hay comunicados en esta categoría.</p></div></div><div id="load-more-wrap"></div>`)
+			}
+			return c.SendString(`<div id="load-more-wrap" hx-swap-oob="true"></div>`)
+		}
+
+		// Empty state for search
+		if len(blocks) == 0 && q != "" {
+			c.Set("Content-Type", "text/html; charset=utf-8")
+			if page == 1 {
+				return c.SendString(`<div class="comunicados-grid" id="comunicados-grid"><div style="grid-column:1/-1;text-align:center;padding:56px 24px;color:var(--md-outline)"><p style="font-size:15px">Sin resultados para esa búsqueda.</p></div></div><div id="load-more-wrap"></div>`)
+			}
+			return c.SendString(`<div id="load-more-wrap" hx-swap-oob="true"></div>`)
+		}
+
+		// Fallback only for "todos" filter with no search
 		if len(blocks) == 0 {
 			blocks = hardcodedComunicados()
+			hasMore = false
+		}
+
+		// Build next-page URL
+		nextURL := func(p int) string {
+			v := url.Values{}
+			v.Set("filter", filter)
+			v.Set("page", fmt.Sprintf("%d", p))
+			if q != "" {
+				v.Set("q", q)
+			}
+			return "/fragments/comunicados?" + v.Encode()
+		}
+
+		loadMoreBtn := func(nextPage int) string {
+			return fmt.Sprintf(`<div id="load-more-wrap" style="text-align:center;padding:24px 0 8px">
+  <button class="filtro-chip" style="padding:12px 28px;font-size:13px"
+          hx-get="%s"
+          hx-target="#comunicados-grid"
+          hx-swap="beforeend">
+    Cargar más
+  </button>
+</div>`, nextURL(nextPage))
 		}
 
 		var sb strings.Builder
-		sb.WriteString(`<div class="comunicados-grid" id="comunicados-grid">`)
+
+		if page == 1 {
+			sb.WriteString(`<div class="comunicados-grid" id="comunicados-grid">`)
+		}
+
 		for i, b := range blocks {
-			tipo, chip, accentClass := categoryToTipo(b.Category, b.Urgency)
+			_, chip, accentClass := categoryToTipo(b.Category, b.Urgency)
+			verMasHref := "#"
+			verMasTarget := ""
+			if b.PdfURL != "" {
+				verMasHref = template.HTMLEscapeString(b.PdfURL)
+				verMasTarget = ` target="_blank" rel="noopener"`
+			}
 			sb.WriteString(fmt.Sprintf(`
-      <div class="comunicado-card %s reveal visible%s" data-tipo="%s">
+      <div class="comunicado-card %s reveal visible%s">
         <div class="comunicado-accent"></div>
         <div class="comunicado-body">
           <span class="comunicado-chip">%s</span>
@@ -273,17 +386,41 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
         </div>
         <div class="comunicado-footer">
           <span class="comunicado-fecha">%s</span>
-          <a href="#" class="comunicado-btn">Ver más →</a>
+          <a href="%s" class="comunicado-btn"%s>Ver comunicado →</a>
         </div>
       </div>`,
-				accentClass, delayClass(i%4), tipo,
+				accentClass, delayClass(i%4),
 				chip,
 				template.HTMLEscapeString(b.Title),
 				template.HTMLEscapeString(b.Desc),
 				b.Date,
+				verMasHref, verMasTarget,
 			))
 		}
-		sb.WriteString(`</div>`)
+
+		if page == 1 {
+			sb.WriteString(`</div>`)
+			if hasMore {
+				sb.WriteString(loadMoreBtn(page + 1))
+			} else {
+				sb.WriteString(`<div id="load-more-wrap"></div>`)
+			}
+		} else {
+			// OOB update for load-more-wrap
+			if hasMore {
+				sb.WriteString(fmt.Sprintf(`<div id="load-more-wrap" hx-swap-oob="true" style="text-align:center;padding:24px 0 8px">
+  <button class="filtro-chip" style="padding:12px 28px;font-size:13px"
+          hx-get="%s"
+          hx-target="#comunicados-grid"
+          hx-swap="beforeend">
+    Cargar más
+  </button>
+</div>`, nextURL(page+1)))
+			} else {
+				sb.WriteString(`<div id="load-more-wrap" hx-swap-oob="true"></div>`)
+			}
+		}
+
 		c.Set("Content-Type", "text/html; charset=utf-8")
 		return c.SendString(sb.String())
 	}
@@ -301,7 +438,7 @@ func categoryToTipo(category string, urgency bool) (tipo, chip, accentClass stri
 	case "EVENTO":
 		return "evento", "Evento", "tipo-evento"
 	case "DEPORTIVO":
-		return "evento", "Deportivo", "tipo-evento"
+		return "deportivo", "Deportivo", "tipo-deportivo"
 	case "NOTICIA":
 		return "info", "Noticia", "tipo-info"
 	default:

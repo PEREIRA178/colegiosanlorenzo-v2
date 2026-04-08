@@ -209,7 +209,31 @@ func ensureCollections(app core.App) error {
 		log.Printf("⚠️  Error seeding content_blocks: %v", err)
 	}
 
+	// ── 12. Migrate content_blocks — add new fields if missing ──
+	migrateContentBlocks(app)
+
 	return nil
+}
+
+// migrateContentBlocks adds fields introduced after initial collection creation.
+func migrateContentBlocks(app core.App) {
+	col, err := app.FindCollectionByNameOrId("content_blocks")
+	if err != nil {
+		return
+	}
+	changed := false
+	for _, name := range []string{"pdf_url", "image_url", "body"} {
+		if col.Fields.GetByName(name) == nil {
+			col.Fields.Add(&core.TextField{Name: name})
+			changed = true
+			log.Printf("  ✅ content_blocks: added field '%s'", name)
+		}
+	}
+	if changed {
+		if err := app.Save(col); err != nil {
+			log.Printf("⚠️  content_blocks migration error: %v", err)
+		}
+	}
 }
 
 type seedBlock struct {
