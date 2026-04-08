@@ -125,9 +125,9 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		var sb strings.Builder
 		sb.WriteString(`<section class="eventos-section" id="eventos">`)
 		sb.WriteString(`<div class="eventos-header-row">`)
-		sb.WriteString(`<div><p class="label-primary reveal">Comunicados y avisos</p>`)
-		sb.WriteString(`<h2 class="headline-l reveal reveal-delay-1" style="margin-bottom:0">Últimos eventos</h2></div>`)
-		sb.WriteString(`<a href="comunicados.html" class="eventos-link reveal">Ver todos los comunicados →</a>`)
+		sb.WriteString(`<div><p class="label-primary reveal visible">Comunicados y avisos</p>`)
+		sb.WriteString(`<h2 class="headline-l reveal visible" style="margin-bottom:0">Últimos eventos</h2></div>`)
+		sb.WriteString(`<a href="comunicados.html" class="eventos-link reveal visible">Ver todos los comunicados →</a>`)
 		sb.WriteString(`</div><div class="eventos-grid">`)
 
 		for i, ev := range blocks {
@@ -136,7 +136,7 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 				urgLabel = `<span style="font-size:11px;font-weight:600;color:#B71C1C">URGENTE</span>`
 			}
 			sb.WriteString(fmt.Sprintf(`
-    <div class="evento-card %s reveal%s">
+    <div class="evento-card %s reveal visible%s">
       <div class="evento-accent"></div>
       <div class="evento-body">
         <span class="evento-chip">%s</span>
@@ -195,13 +195,13 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 		var sb strings.Builder
 		sb.WriteString(`<section class="noticias-section" id="noticias"><div class="container">`)
-		sb.WriteString(`<p class="label-primary reveal">Noticias y Prensa</p>`)
-		sb.WriteString(`<h2 class="headline-l reveal reveal-delay-1" style="margin-bottom:var(--sp-40)">Últimas noticias</h2>`)
+		sb.WriteString(`<p class="label-primary reveal visible">Noticias y Prensa</p>`)
+		sb.WriteString(`<h2 class="headline-l reveal visible" style="margin-bottom:var(--sp-40)">Últimas noticias</h2>`)
 		sb.WriteString(`<div class="noticias-grid">`)
 
 		for i, n := range noticias {
 			sb.WriteString(fmt.Sprintf(`
-      <article class="noticia-card reveal%s">
+      <article class="noticia-card reveal visible%s">
         <div class="noticia-img" style="background:%s"></div>
         <div class="noticia-content">
           <span class="noticia-cat">%s</span>
@@ -255,7 +255,7 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		for i, b := range blocks {
 			tipo, chip, accentClass := categoryToTipo(b.Category, b.Urgency)
 			sb.WriteString(fmt.Sprintf(`
-      <div class="comunicado-card %s reveal%s" data-tipo="%s">
+      <div class="comunicado-card %s reveal visible%s" data-tipo="%s">
         <div class="comunicado-accent"></div>
         <div class="comunicado-body">
           <span class="comunicado-chip">%s</span>
