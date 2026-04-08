@@ -338,7 +338,11 @@ func EventCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		r.Set("description", c.FormValue("description"))
 		r.Set("category", c.FormValue("category"))
 		r.Set("urgency", c.FormValue("urgency") == "on")
-		r.Set("date", c.FormValue("date"))
+		if ds := c.FormValue("date"); ds != "" {
+			if t, err2 := time.Parse("2006-01-02T15:04", ds); err2 == nil {
+				r.Set("date", t.UTC())
+			}
+		}
 		r.Set("featured", c.FormValue("featured") == "on")
 		r.Set("status", c.FormValue("status"))
 		if err := pb.Save(r); err != nil {
@@ -359,7 +363,7 @@ func EventEdit(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 		dateStr := ""
 		if dt := r.GetDateTime("date"); !dt.IsZero() {
-			dateStr = dt.Time().Format("2006-01-02")
+			dateStr = dt.Time().Format("2006-01-02T15:04")
 		}
 		html := eventFormHTML(
 			r.Id,
@@ -386,7 +390,11 @@ func EventUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		r.Set("description", c.FormValue("description"))
 		r.Set("category", c.FormValue("category"))
 		r.Set("urgency", c.FormValue("urgency") == "on")
-		r.Set("date", c.FormValue("date"))
+		if ds := c.FormValue("date"); ds != "" {
+			if t, err2 := time.Parse("2006-01-02T15:04", ds); err2 == nil {
+				r.Set("date", t.UTC())
+			}
+		}
 		r.Set("featured", c.FormValue("featured") == "on")
 		r.Set("status", c.FormValue("status"))
 		if err := pb.Save(r); err != nil {

@@ -200,17 +200,24 @@ func Noticias(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		sb.WriteString(`<div class="noticias-grid">`)
 
 		for i, n := range noticias {
+			featuredClass := ""
+			if i == 0 {
+				featuredClass = " noticia-featured"
+			}
 			sb.WriteString(fmt.Sprintf(`
-      <article class="noticia-card reveal visible%s">
-        <div class="noticia-img" style="background:%s"></div>
-        <div class="noticia-content">
+      <article class="noticia-card%s reveal visible%s">
+        <div class="noticia-thumb" style="background:%s"></div>
+        <div class="noticia-body">
           <span class="noticia-cat">%s</span>
           <h3>%s</h3>
           <p>%s</p>
+        </div>
+        <div class="noticia-meta">
           <span class="noticia-fecha">%s</span>
+          <a href="#" class="noticia-leer">Leer más →</a>
         </div>
       </article>`,
-				delays[i%len(delays)], bgColors[i%len(bgColors)],
+				featuredClass, delays[i%len(delays)], bgColors[i%len(bgColors)],
 				template.HTMLEscapeString(n.Category),
 				template.HTMLEscapeString(n.Title),
 				template.HTMLEscapeString(n.Excerpt),
@@ -240,7 +247,9 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		case "academico":
 			pbFilter += " && category = 'ACADÉMICO'"
 		case "evento":
-			pbFilter += " && (category = 'EVENTO' || category = 'DEPORTIVO')"
+			pbFilter += " && category = 'EVENTO'"
+		case "deportivo":
+			pbFilter += " && category = 'DEPORTIVO'"
 		}
 
 		blocks := fetchContentBlocks(pb, pbFilter, 50)
@@ -289,8 +298,10 @@ func categoryToTipo(category string, urgency bool) (tipo, chip, accentClass stri
 		return "reunion", "Reunión", "tipo-reunion"
 	case "ACADÉMICO":
 		return "academico", "Académico", "tipo-academico"
-	case "EVENTO", "DEPORTIVO":
+	case "EVENTO":
 		return "evento", "Evento", "tipo-evento"
+	case "DEPORTIVO":
+		return "evento", "Deportivo", "tipo-evento"
 	case "NOTICIA":
 		return "info", "Noticia", "tipo-info"
 	default:
