@@ -138,9 +138,6 @@ func Eventos(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 		for i, ev := range blocks {
 			footerRight := ""
-			if ev.Urgency {
-				footerRight = `<span style="font-size:11px;font-weight:600;color:#B71C1C">URGENTE</span>`
-			}
 			if ev.PdfURL != "" {
 				footerRight = fmt.Sprintf(`<a href="%s" target="_blank" rel="noopener" style="font-size:12px;font-weight:500;color:var(--md-primary);text-decoration:none">Ver comunicado →</a>`,
 					template.HTMLEscapeString(ev.PdfURL))
@@ -261,7 +258,7 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 		}
 		const pageSize = 12
 
-		pbFilter := "status = 'publicado'"
+		pbFilter := "status = 'publicado' && category != 'NOTICIA'"
 		switch filter {
 		case "urgente":
 			pbFilter += " && category = 'EMERGENCIA'"
@@ -370,11 +367,10 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 		for i, b := range blocks {
 			_, chip, accentClass := categoryToTipo(b.Category, b.Urgency)
-			verMasHref := "#"
-			verMasTarget := ""
+			verMasBtn := ""
 			if b.PdfURL != "" {
-				verMasHref = template.HTMLEscapeString(b.PdfURL)
-				verMasTarget = ` target="_blank" rel="noopener"`
+				verMasBtn = fmt.Sprintf(`<a href="%s" class="comunicado-btn" target="_blank" rel="noopener">Ver comunicado →</a>`,
+					template.HTMLEscapeString(b.PdfURL))
 			}
 			sb.WriteString(fmt.Sprintf(`
       <div class="comunicado-card %s reveal visible%s">
@@ -386,7 +382,7 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
         </div>
         <div class="comunicado-footer">
           <span class="comunicado-fecha">%s</span>
-          <a href="%s" class="comunicado-btn"%s>Ver comunicado →</a>
+          %s
         </div>
       </div>`,
 				accentClass, delayClass(i%4),
@@ -394,7 +390,7 @@ func Comunicados(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 				template.HTMLEscapeString(b.Title),
 				template.HTMLEscapeString(b.Desc),
 				b.Date,
-				verMasHref, verMasTarget,
+				verMasBtn,
 			))
 		}
 

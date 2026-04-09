@@ -212,7 +212,26 @@ func ensureCollections(app core.App) error {
 	// ── 12. Migrate content_blocks — add new fields if missing ──
 	migrateContentBlocks(app)
 
+	// ── 13. Migrate urgency: set urgency=true for all EMERGENCIA records ──
+	migrateUrgencyFromCategory(app)
+
 	return nil
+}
+
+// migrateUrgencyFromCategory sets urgency=true for all EMERGENCIA records (idempotent).
+func migrateUrgencyFromCategory(app core.App) {
+	records, err := app.FindRecordsByFilter("content_blocks",
+		"category = 'EMERGENCIA' && urgency = false", "", 1000, 0)
+	if err != nil || len(records) == 0 {
+		return
+	}
+	for _, r := range records {
+		r.Set("urgency", true)
+		if err := app.Save(r); err != nil {
+			log.Printf("⚠️  urgency migration error for %s: %v", r.Id, err)
+		}
+	}
+	log.Printf("  ✅ Migrated urgency=true for %d EMERGENCIA records", len(records))
 }
 
 // migrateContentBlocks adds fields introduced after initial collection creation.
