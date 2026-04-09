@@ -274,6 +274,11 @@ func MultimediaDelete(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handl
 func EventsList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		if c.Query("fragment") != "rows" {
+			// Direct browser access (F5 / bookmark): serve full SPA shell.
+			// HTMX navigation sets HX-Request; the JS in dashboard auto-loads this panel.
+			if c.Get("HX-Request") != "true" {
+				return c.SendFile("./internal/templates/admin/pages/dashboard.html")
+			}
 			return c.SendFile("./internal/templates/admin/pages/events.html")
 		}
 		records, err := pb.FindRecordsByFilter("content_blocks",

@@ -337,6 +337,19 @@ document.querySelectorAll('.sidebar-link').forEach(link => {
   });
 });
 
+// Auto-load section on direct navigation (F5 / bookmark / deep link)
+(function(){
+  var path = window.location.pathname;
+  var sections = ['/admin/events','/admin/news','/admin/multimedia',
+                  '/admin/playlists','/admin/devices','/admin/whatsapp-logs','/admin/users'];
+  if(sections.indexOf(path) !== -1){
+    htmx.ajax('GET', path, {target:'#main-content', swap:'innerHTML'});
+    document.querySelectorAll('.sidebar-link').forEach(function(l){
+      if(l.getAttribute('href') === path) l.classList.add('active');
+    });
+  }
+})();
+
 // WebSocket connection for realtime updates
 (function() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
