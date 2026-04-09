@@ -82,7 +82,7 @@ func main() {
 
 	// ── HTMX FRAGMENTS ──
 	frag := app.Group("/fragments")
-	frag.Get("/hero", fragments.HeroCarousel(cfg))
+	frag.Get("/hero", fragments.HeroCarousel(cfg, pb))
 	frag.Get("/eventos", fragments.Eventos(cfg, pb))
 	frag.Get("/noticias", fragments.Noticias(cfg, pb))
 	frag.Get("/comunicados", fragments.Comunicados(cfg, pb))

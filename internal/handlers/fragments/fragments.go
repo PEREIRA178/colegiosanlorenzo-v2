@@ -7,46 +7,29 @@ import (
 	"strings"
 
 	"csl-system/internal/config"
+	"csl-system/internal/services"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/pocketbase/pocketbase"
 )
 
-// GET /fragments/hero
-func HeroCarousel(cfg *config.Config) fiber.Handler {
+// GET /fragments/hero — dynamic playlist carousel for the web_hero device.
+// Falls back to the static hero when no playlist is configured.
+func HeroCarousel(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		html := `<section class="hero-wrap" id="hero">
-  <div class="hero-carousel">
-    <div class="hero-slide active">
-      <div class="hero-slide-bg slide-grad-1"></div>
-      <div class="hero-slide-content">
-        <div class="hero-text">
-          <p class="hero-eyebrow">Copiapó, Atacama · desde 1990</p>
-          <h1 class="hero-title">Per laborem<br/><em>ad lucem</em></h1>
-          <p class="hero-desc">Formando generaciones con excelencia académica, valores humanos y el espíritu del norte de Chile.</p>
-          <div class="hero-actions">
-            <a href="admision.html" class="btn-filled">Admisión 2027</a>
-            <a href="nuestro-colegio.html" class="btn-tonal-white">Conocer más</a>
-          </div>
-        </div>
-        <div class="hero-float-card">
-          <div class="hero-stat-row">
-            <div><div class="hero-stat-num">35+</div><div class="hero-stat-label">años formando<br/>estudiantes</div></div>
-            <div><div class="hero-stat-num">3</div><div class="hero-stat-label">niveles:<br/>Básica y Media</div></div>
-          </div>
-          <div class="hero-lema-float"><em>"Por el trabajo hacia la luz"</em></div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="hero-controls">
-    <button class="hero-arrow prev" aria-label="Anterior">‹</button>
-    <div class="hero-dots"></div>
-    <button class="hero-arrow next" aria-label="Siguiente">›</button>
-  </div>
-</section>`
+		slides, deviceID, err := services.FetchWebHeroSlides(pb)
+		if err != nil || len(slides) == 0 {
+			c.Set("Content-Type", "text/html; charset=utf-8")
+			return c.SendString(services.FallbackHeroHTML())
+		}
+
+		idx := services.CalculateCurrentIndex(c, len(slides))
+		slide := slides[idx]
+
+		services.UpdateDeviceStatus(pb, deviceID, slide.Title)
+
 		c.Set("Content-Type", "text/html; charset=utf-8")
-		return c.SendString(html)
+		return c.SendString(services.BuildHeroHTML(slide, idx, len(slides)))
 	}
 }
 

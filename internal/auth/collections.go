@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/pocketbase/pocketbase"
@@ -215,6 +216,23 @@ func ensureCollections(app core.App) error {
 	// ── 13. Migrate urgency: set urgency=true for all EMERGENCIA records ──
 	migrateUrgencyFromCategory(app)
 
+	// ── 14. Migrate content_blocks: add template field ──
+	migrateContentBlocksTemplate(app)
+
+	// ── 15. Migrate devices: add current_view field ──
+	migrateDevicesCurrentView(app)
+
+	// ── 16. Migrate playlist_items: add content_block_id field ──
+	migratePlaylistItemsContentBlockID(app)
+
+	// ── 17. Migrate multimedia: add start_time field ──
+	migrateMultimediaStartTime(app)
+
+	// ── 18. Seed devices, playlists and playlist items ──
+	if err := SeedDevicesAndPlaylists(app); err != nil {
+		log.Printf("⚠️  Error seeding devices/playlists: %v", err)
+	}
+
 	return nil
 }
 
@@ -396,3 +414,210 @@ func seedContentBlocks(app core.App) error {
 }
 
 var _ = types.DateTime{}
+
+// ── New migrations ─────────────────────────────────────────────────────────────
+
+// migrateContentBlocksTemplate adds the 'template' field to content_blocks,
+// enabling multiple slide layouts (e.g. "hero-classic", "hero-full-video", "alert-emergencia").
+func migrateContentBlocksTemplate(app core.App) {
+	col, err := app.FindCollectionByNameOrId("content_blocks")
+	if err != nil || col.Fields.GetByName("template") != nil {
+		return
+	}
+	col.Fields.Add(&core.TextField{Name: "template"})
+	if err := app.Save(col); err != nil {
+		log.Printf("⚠️  content_blocks template migration: %v", err)
+		return
+	}
+	log.Println("  ✅ content_blocks: added field 'template'")
+}
+
+// migrateDevicesCurrentView adds the 'current_view' field to devices
+// so the carousel can record which slide each device is displaying.
+func migrateDevicesCurrentView(app core.App) {
+	col, err := app.FindCollectionByNameOrId("devices")
+	if err != nil || col.Fields.GetByName("current_view") != nil {
+		return
+	}
+	col.Fields.Add(&core.TextField{Name: "current_view"})
+	if err := app.Save(col); err != nil {
+		log.Printf("⚠️  devices current_view migration: %v", err)
+		return
+	}
+	log.Println("  ✅ devices: added field 'current_view'")
+}
+
+// migratePlaylistItemsContentBlockID adds 'content_block_id' to playlist_items
+// so items of tipo="content_block" can reference a content_blocks record.
+func migratePlaylistItemsContentBlockID(app core.App) {
+	col, err := app.FindCollectionByNameOrId("playlist_items")
+	if err != nil || col.Fields.GetByName("content_block_id") != nil {
+		return
+	}
+	col.Fields.Add(&core.TextField{Name: "content_block_id"})
+	if err := app.Save(col); err != nil {
+		log.Printf("⚠️  playlist_items content_block_id migration: %v", err)
+		return
+	}
+	log.Println("  ✅ playlist_items: added field 'content_block_id'")
+}
+
+// migrateMultimediaStartTime adds 'start_time' (seconds) to multimedia
+// so video items can carry a seek position independent of the URL fragment.
+func migrateMultimediaStartTime(app core.App) {
+	col, err := app.FindCollectionByNameOrId("multimedia")
+	if err != nil || col.Fields.GetByName("start_time") != nil {
+		return
+	}
+	col.Fields.Add(&core.NumberField{Name: "start_time"})
+	if err := app.Save(col); err != nil {
+		log.Printf("⚠️  multimedia start_time migration: %v", err)
+		return
+	}
+	log.Println("  ✅ multimedia: added field 'start_time'")
+}
+
+// ── Device & playlist seeder ───────────────────────────────────────────────────
+
+// SeedDevicesAndPlaylists is idempotent: it skips entirely if a web_hero device
+// already exists. On first run it creates:
+//   - 1 web_hero device  ("Web Hero - Landing Pública")
+//   - 2 vertical totems  (T001, T002)
+//   - 3 horizontal screens (P001, P002, P003)
+//   - 1 playlist "Hero Principal 2026" with 3 items:
+//     slide 1 → content_block  (template: "hero-classic")
+//     slide 2 → image          (placeholder URL)
+//     slide 3 → video          (INFRA_INA20261-1.mp4, start 8.18 s)
+//
+// All devices are assigned to that playlist.
+func SeedDevicesAndPlaylists(app core.App) error {
+	// Idempotency: skip if any web_hero device already exists.
+	existing, _ := app.FindRecordsByFilter("devices", "type = 'web_hero'", "", 1, 0)
+	if len(existing) > 0 {
+		return nil
+	}
+
+	// ── 1. Hero-classic content block ─────────────────────────────────────────
+	cbCol, err := app.FindCollectionByNameOrId("content_blocks")
+	if err != nil {
+		return fmt.Errorf("content_blocks collection not found: %w", err)
+	}
+	cb := core.NewRecord(cbCol)
+	cb.Set("title", "Per laborem ad lucem")
+	cb.Set("description", "Formando generaciones con excelencia académica, valores humanos y el espíritu del norte de Chile.")
+	cb.Set("category", "INFORMACIÓN")
+	cb.Set("status", "publicado")
+	cb.Set("template", "hero-classic")
+	if err := app.Save(cb); err != nil {
+		return fmt.Errorf("save hero content_block: %w", err)
+	}
+
+	// ── 2. Placeholder image multimedia ───────────────────────────────────────
+	mmCol, err := app.FindCollectionByNameOrId("multimedia")
+	if err != nil {
+		return fmt.Errorf("multimedia collection not found: %w", err)
+	}
+	imgMM := core.NewRecord(mmCol)
+	imgMM.Set("filename", "campus-csl.jpg")
+	imgMM.Set("url_r2", "https://colegiosanlorenzo.cl/wp-content/uploads/campus-csl.jpg")
+	imgMM.Set("type", "imagen")
+	imgMM.Set("estado", "publicado")
+	if err := app.Save(imgMM); err != nil {
+		return fmt.Errorf("save image multimedia: %w", err)
+	}
+
+	// ── 3. Video multimedia (start at 8.18 s) ─────────────────────────────────
+	vidMM := core.NewRecord(mmCol)
+	vidMM.Set("filename", "INFRA_INA20261-1.mp4")
+	vidMM.Set("url_r2", "https://colegiosanlorenzo.cl/wp-content/uploads/2026/03/INFRA_INA20261-1.mp4")
+	vidMM.Set("type", "video")
+	vidMM.Set("estado", "publicado")
+	vidMM.Set("start_time", 8.18)
+	if err := app.Save(vidMM); err != nil {
+		return fmt.Errorf("save video multimedia: %w", err)
+	}
+
+	// ── 4. Playlist ───────────────────────────────────────────────────────────
+	plCol, err := app.FindCollectionByNameOrId("playlists")
+	if err != nil {
+		return fmt.Errorf("playlists collection not found: %w", err)
+	}
+	pl := core.NewRecord(plCol)
+	pl.Set("name", "Hero Principal 2026")
+	pl.Set("description", "Playlist principal para la landing pública del colegio")
+	pl.Set("status", "activa")
+	if err := app.Save(pl); err != nil {
+		return fmt.Errorf("save playlist: %w", err)
+	}
+
+	// ── 5. Playlist items ─────────────────────────────────────────────────────
+	piCol, err := app.FindCollectionByNameOrId("playlist_items")
+	if err != nil {
+		return fmt.Errorf("playlist_items collection not found: %w", err)
+	}
+
+	type piSeed struct {
+		tipo     string
+		cbID     string
+		mmID     string
+		orden    int
+		duracion int
+	}
+	piItems := []piSeed{
+		{tipo: "content_block", cbID: cb.Id, orden: 1, duracion: 10},
+		{tipo: "image", mmID: imgMM.Id, orden: 2, duracion: 8},
+		{tipo: "video", mmID: vidMM.Id, orden: 3, duracion: 30},
+	}
+	for _, it := range piItems {
+		pi := core.NewRecord(piCol)
+		pi.Set("playlist_id", pl.Id)
+		pi.Set("tipo", it.tipo)
+		pi.Set("orden", it.orden)
+		pi.Set("duracion_segundos", it.duracion)
+		if it.cbID != "" {
+			pi.Set("content_block_id", it.cbID)
+		}
+		if it.mmID != "" {
+			pi.Set("multimedia_id", it.mmID)
+		}
+		if err := app.Save(pi); err != nil {
+			log.Printf("⚠️  seed playlist_item (orden %d): %v", it.orden, err)
+		}
+	}
+
+	// ── 6. Devices — all assigned to the same playlist ────────────────────────
+	devCol, err := app.FindCollectionByNameOrId("devices")
+	if err != nil {
+		return fmt.Errorf("devices collection not found: %w", err)
+	}
+
+	type devSeed struct {
+		name      string
+		dtype     string
+		code      string
+		ubicacion string
+	}
+	devItems := []devSeed{
+		{"Web Hero - Landing Pública", "web_hero", "WEB1", "Sitio Web Público"},
+		{"Totem Entrada Principal", "vertical", "T001", "Entrada Principal"},
+		{"Totem Gimnasio", "vertical", "T002", "Gimnasio"},
+		{"Pantalla Sala Profesores", "horizontal", "P001", "Sala de Profesores"},
+		{"Pantalla Casino", "horizontal", "P002", "Casino"},
+		{"Pantalla Patio Principal", "horizontal", "P003", "Patio Principal"},
+	}
+	for _, d := range devItems {
+		dev := core.NewRecord(devCol)
+		dev.Set("name", d.name)
+		dev.Set("type", d.dtype)
+		dev.Set("code", d.code)
+		dev.Set("ubicacion", d.ubicacion)
+		dev.Set("playlist_id", pl.Id)
+		dev.Set("status", "activo")
+		if err := app.Save(dev); err != nil {
+			log.Printf("⚠️  seed device %s: %v", d.name, err)
+		}
+	}
+
+	log.Printf("  ✅ SeedDevicesAndPlaylists: 6 devices + playlist '%s' + 3 items", pl.GetString("name"))
+	return nil
+}
