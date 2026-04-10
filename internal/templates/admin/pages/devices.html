@@ -2,7 +2,7 @@
     <div class="card-header">
       <h2 class="card-title">Pantallas y Totems</h2>
       <button class="topbar-btn topbar-btn-primary"
-              hx-post="/admin/devices"
+              hx-get="/admin/devices/new"
               hx-target="#modal-container"
               hx-swap="innerHTML">
         <span class="material-symbols-outlined" style="font-size:16px">add</span> Registrar dispositivo
@@ -35,3 +35,4 @@
     </div>
   </div>
   <div id="modal-container"></div>
+  <div id="toast-area" style="position:fixed;top:80px;right:24px;z-index:9999"></div>
