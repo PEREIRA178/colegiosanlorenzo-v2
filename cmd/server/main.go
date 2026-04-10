@@ -138,20 +138,22 @@ func main() {
 	adm.Delete("/news/:id", admin.NewsDelete(cfg, pb))
 
 	// Playlists
-	adm.Get("/playlists", admin.PlaylistList(cfg))
-	adm.Get("/playlists/new", admin.PlaylistForm(cfg))
-	adm.Post("/playlists", admin.PlaylistCreate(cfg))
-	adm.Get("/playlists/:id/edit", admin.PlaylistEdit(cfg))
-	adm.Put("/playlists/:id", admin.PlaylistUpdate(cfg))
-	adm.Delete("/playlists/:id", admin.PlaylistDelete(cfg))
-	adm.Post("/playlists/:id/items/reorder", admin.PlaylistReorder(cfg))
+	adm.Get("/playlists", admin.PlaylistList(cfg, pb))
+	adm.Get("/playlists/new", admin.PlaylistForm(cfg, pb))
+	adm.Post("/playlists", admin.PlaylistCreate(cfg, pb))
+	adm.Get("/playlists/:id/edit", admin.PlaylistEdit(cfg, pb))
+	adm.Put("/playlists/:id", admin.PlaylistUpdate(cfg, pb))
+	adm.Delete("/playlists/:id", admin.PlaylistDelete(cfg, pb))
+	adm.Post("/playlists/:id/items/reorder", admin.PlaylistReorder(cfg, pb))
 
 	// Devices
-	adm.Get("/devices", admin.DeviceList(cfg))
-	adm.Post("/devices", admin.DeviceCreate(cfg))
-	adm.Put("/devices/:id", admin.DeviceUpdate(cfg))
-	adm.Delete("/devices/:id", admin.DeviceDelete(cfg))
-	adm.Post("/devices/:id/assign-playlist", admin.DeviceAssignPlaylist(cfg))
+	adm.Get("/devices", admin.DeviceList(cfg, pb))
+	adm.Get("/devices/new", admin.DeviceForm(cfg, pb))
+	adm.Post("/devices", admin.DeviceCreate(cfg, pb))
+	adm.Get("/devices/:id/edit", admin.DeviceEdit(cfg, pb))
+	adm.Put("/devices/:id", admin.DeviceUpdate(cfg, pb))
+	adm.Delete("/devices/:id", admin.DeviceDelete(cfg, pb))
+	adm.Post("/devices/:id/assign-playlist", admin.DeviceAssignPlaylist(cfg, pb))
 
 	// Users
 	adm.Get("/users", middleware.RoleRequired("superadmin", "director"), admin.UserList(cfg))

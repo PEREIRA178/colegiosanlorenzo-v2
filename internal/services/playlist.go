@@ -285,11 +285,12 @@ func buildHeroClassicHTML(currentIndex, totalSlides int) string {
 }
 
 // buildImageSlideHTML renders a full-bleed image slide.
+// NOTE: .hero-slide is already position:absolute;inset:0 via CSS — no inline override needed.
 func buildImageSlideHTML(slide Slide, currentIndex, totalSlides int) string {
 	controls := buildCarouselControls(currentIndex, totalSlides)
 	return fmt.Sprintf(`<section class="hero-wrap" id="hero">
   <div class="hero-carousel">
-    <div class="hero-slide active" style="position:relative;overflow:hidden">
+    <div class="hero-slide active">
       <img src="%s" alt="%s"
            style="position:absolute;inset:0;width:100%%;height:100%%;object-fit:cover" />
     </div>
@@ -323,7 +324,7 @@ func buildVideoSlideHTML(slide Slide, currentIndex, totalSlides int) string {
 
 	return fmt.Sprintf(`<section class="hero-wrap" id="hero">
   <div class="hero-carousel">
-    <div class="hero-slide active" style="position:relative;overflow:hidden">
+    <div class="hero-slide active">
       <video autoplay muted playsinline loop
              style="position:absolute;inset:0;width:100%%;height:100%%;object-fit:cover">
         <source src="%s" type="video/mp4">
