@@ -6,6 +6,7 @@ import (
 
 	"csl-system/internal/auth"
 	"csl-system/internal/config"
+	apiHandlers "csl-system/internal/handlers/api"
 	"csl-system/internal/handlers/admin"
 	"csl-system/internal/handlers/fragments"
 	"csl-system/internal/handlers/web"
@@ -79,6 +80,7 @@ func main() {
 	app.Get("/cepad.html", web.PageHandler(cfg, "cepad"))
 	app.Get("/inclusion.html", web.PageHandler(cfg, "inclusion"))
 	app.Get("/ceal.html", web.PageHandler(cfg, "ceal"))
+	app.Get("/noticias.html", web.PageHandler(cfg, "noticias"))
 
 	// ── HTMX FRAGMENTS ──
 	frag := app.Group("/fragments")
@@ -87,12 +89,19 @@ func main() {
 	frag.Get("/noticias", fragments.Noticias(cfg, pb))
 	frag.Get("/comunicados", fragments.Comunicados(cfg, pb))
 	frag.Get("/blog", fragments.Blog(cfg, pb))
+	frag.Get("/noticias-page", fragments.NoticiasPage(cfg, pb))
 
 	app.Get("/noticias/:id", web.NoticiaHandler(cfg, pb))
 	app.Get("/rss.xml", web.RSSFeed(cfg))
 
+	// ── PUBLIC API ──
+	api := app.Group("/api")
+	api.Get("/devices/:code/playlist", apiHandlers.DevicePlaylist(cfg, pb))
+	api.Get("/events/upcoming", apiHandlers.UpcomingEvents(cfg, pb))
+
 	// ── DEVICE / WS ──
 	app.Get("/display/:code", web.DeviceDisplay(cfg))
+	app.Get("/totem/:code", web.TotemDisplay(cfg))
 	app.Use("/ws", func(c *fiber.Ctx) error {
 		if gows.IsWebSocketUpgrade(c) {
 			return c.Next()

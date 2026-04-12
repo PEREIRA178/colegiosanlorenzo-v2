@@ -446,6 +446,144 @@ func Blog(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	}
 }
 
+// GET /fragments/noticias-page — full searchable listing of noticias (category=NOTICIA).
+// Used by web/noticias.html via HTMX.
+func NoticiasPage(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		q := strings.TrimSpace(c.Query("q", ""))
+		page := c.QueryInt("page", 1)
+		if page < 1 {
+			page = 1
+		}
+		const pageSize = 9
+
+		pbFilter := "status = 'publicado' && category = 'NOTICIA'"
+		if q != "" {
+			safeQ := strings.ReplaceAll(strings.ReplaceAll(q, "'", ""), "\\", "")
+			pbFilter += fmt.Sprintf(" && (title ~ '%s' || description ~ '%s')", safeQ, safeQ)
+		}
+
+		offset := (page - 1) * pageSize
+		records, err := pb.FindRecordsByFilter("content_blocks", pbFilter, "-date", pageSize+1, offset)
+
+		type noticia struct {
+			ID       string
+			Title    string
+			Excerpt  string
+			Date     string
+			ImageURL string
+		}
+		var noticias []noticia
+
+		hasMore := false
+		if err == nil && len(records) > 0 {
+			hasMore = len(records) > pageSize
+			if hasMore {
+				records = records[:pageSize]
+			}
+			for _, r := range records {
+				dateStr := ""
+				if dt := r.GetDateTime("date"); !dt.IsZero() {
+					dateStr = dt.Time().Format("2 January 2006")
+				}
+				noticias = append(noticias, noticia{
+					ID:       r.Id,
+					Title:    r.GetString("title"),
+					Excerpt:  r.GetString("description"),
+					Date:     dateStr,
+					ImageURL: r.GetString("image_url"),
+				})
+			}
+		}
+
+		var sb strings.Builder
+
+		if page == 1 {
+			sb.WriteString(`<div class="noticias-page-grid" id="noticias-page-grid">`)
+		}
+
+		if len(noticias) == 0 && page == 1 {
+			msg := "No hay noticias publicadas."
+			if q != "" {
+				msg = "Sin resultados para esa búsqueda."
+			}
+			sb.WriteString(fmt.Sprintf(`<div style="grid-column:1/-1;text-align:center;padding:64px 24px;color:var(--md-outline)"><p style="font-size:15px">%s</p></div>`, msg))
+		} else {
+			bgColors := []string{
+				"var(--md-primary-container)",
+				"var(--md-secondary-container)",
+				"var(--md-surface-container-high)",
+			}
+			for i, n := range noticias {
+				thumbInner := ""
+				if n.ImageURL != "" {
+					thumbInner = fmt.Sprintf(`<img src="%s" style="width:100%%;height:100%%;object-fit:cover" alt="%s"/>`,
+						template.HTMLEscapeString(n.ImageURL), template.HTMLEscapeString(n.Title))
+				}
+				leerHref := "#"
+				if n.ID != "" {
+					leerHref = "/noticias/" + n.ID
+				}
+				sb.WriteString(fmt.Sprintf(`
+      <article class="noticia-card-page">
+        <div class="noticia-thumb-page" style="background:%s">%s</div>
+        <div class="noticia-body-page">
+          <h3>%s</h3>
+          <p>%s</p>
+        </div>
+        <div class="noticia-meta-page">
+          <span class="noticia-fecha-page">%s</span>
+          <a href="%s" class="noticia-leer-page">Leer más →</a>
+        </div>
+      </article>`,
+					bgColors[i%len(bgColors)],
+					thumbInner,
+					template.HTMLEscapeString(n.Title),
+					template.HTMLEscapeString(n.Excerpt),
+					n.Date,
+					leerHref,
+				))
+			}
+		}
+
+		if page == 1 {
+			sb.WriteString(`</div>`)
+			if hasMore {
+				nextURL := fmt.Sprintf("/fragments/noticias-page?page=%d", page+1)
+				if q != "" {
+					nextURL += "&q=" + url.QueryEscape(q)
+				}
+				sb.WriteString(fmt.Sprintf(`<div id="np-load-more" style="text-align:center;padding:32px 0 8px">
+  <button class="filtro-chip" style="padding:12px 28px;font-size:13px"
+          hx-get="%s" hx-target="#noticias-page-grid" hx-swap="beforeend">
+    Cargar más
+  </button>
+</div>`, nextURL))
+			} else {
+				sb.WriteString(`<div id="np-load-more"></div>`)
+			}
+		} else {
+			if hasMore {
+				nextURL := fmt.Sprintf("/fragments/noticias-page?page=%d", page+1)
+				if q != "" {
+					nextURL += "&q=" + url.QueryEscape(q)
+				}
+				sb.WriteString(fmt.Sprintf(`<div id="np-load-more" hx-swap-oob="true" style="text-align:center;padding:32px 0 8px">
+  <button class="filtro-chip" style="padding:12px 28px;font-size:13px"
+          hx-get="%s" hx-target="#noticias-page-grid" hx-swap="beforeend">
+    Cargar más
+  </button>
+</div>`, nextURL))
+			} else {
+				sb.WriteString(`<div id="np-load-more" hx-swap-oob="true"></div>`)
+			}
+		}
+
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		return c.SendString(sb.String())
+	}
+}
+
 func delayClass(i int) string {
 	if i == 0 {
 		return ""
