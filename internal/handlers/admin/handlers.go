@@ -336,13 +336,21 @@ func EventForm(cfg *config.Config) fiber.Handler {
 
 func EventCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		title := c.FormValue("title")
+		description := c.FormValue("description")
+		if len([]rune(title)) > 120 {
+			return c.SendString(`<div class="toast toast-error">El título no puede superar 120 caracteres</div>`)
+		}
+		if len([]rune(description)) > 600 {
+			return c.SendString(`<div class="toast toast-error">La descripción no puede superar 600 caracteres</div>`)
+		}
 		col, err := pb.FindCollectionByNameOrId("content_blocks")
 		if err != nil {
 			return c.Status(500).SendString(`<div class="toast toast-error">Error de BD</div>`)
 		}
 		r := core.NewRecord(col)
-		r.Set("title", c.FormValue("title"))
-		r.Set("description", c.FormValue("description"))
+		r.Set("title", title)
+		r.Set("description", description)
 		r.Set("category", c.FormValue("category"))
 		r.Set("urgency", c.FormValue("category") == "EMERGENCIA")
 		if ds := c.FormValue("date"); ds != "" {
@@ -391,13 +399,21 @@ func EventEdit(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 
 func EventUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		title := c.FormValue("title")
+		description := c.FormValue("description")
+		if len([]rune(title)) > 120 {
+			return c.SendString(`<div class="toast toast-error">El título no puede superar 120 caracteres</div>`)
+		}
+		if len([]rune(description)) > 600 {
+			return c.SendString(`<div class="toast toast-error">La descripción no puede superar 600 caracteres</div>`)
+		}
 		id := c.Params("id")
 		r, err := pb.FindRecordById("content_blocks", id)
 		if err != nil {
 			return c.SendString(`<div class="toast toast-error">No encontrado</div>`)
 		}
-		r.Set("title", c.FormValue("title"))
-		r.Set("description", c.FormValue("description"))
+		r.Set("title", title)
+		r.Set("description", description)
 		r.Set("category", c.FormValue("category"))
 		r.Set("urgency", c.FormValue("category") == "EMERGENCIA")
 		if ds := c.FormValue("date"); ds != "" {
@@ -475,8 +491,17 @@ func eventFormHTML(id, title, description, category, status, date, pdfUrl string
       <button onclick="document.getElementById('modal-container').innerHTML=''" style="background:none;border:none;cursor:pointer;font-size:20px;color:var(--md-outline)">✕</button>
     </div>
     <form %s hx-target="#toast-area" hx-swap="innerHTML">
-      <div class="form-field"><label>Título</label><input type="text" name="title" value="%s" required class="form-input" placeholder="Título del comunicado"/></div>
-      <div class="form-field"><label>Descripción</label><textarea name="description" class="form-input" rows="3" placeholder="Descripción breve...">%s</textarea></div>
+      <div class="form-field">
+        <label>Título <small id="ev-title-cnt" style="float:right;font-size:11px;color:var(--md-outline)">0/120</small></label>
+        <input type="text" name="title" value="%s" required class="form-input" maxlength="120" placeholder="Título del comunicado"
+          oninput="(function(el){var c=document.getElementById('ev-title-cnt');if(c){c.textContent=el.value.length+'/120';c.style.color=el.value.length>100?'#B71C1C':''}})(this)"
+          onchange="(function(el){var c=document.getElementById('ev-title-cnt');if(c)c.textContent=el.value.length+'/120'})(this)"/>
+      </div>
+      <div class="form-field">
+        <label>Descripción <small id="ev-desc-cnt" style="float:right;font-size:11px;color:var(--md-outline)">0/600</small></label>
+        <textarea name="description" class="form-input" rows="3" maxlength="600" placeholder="Descripción breve..."
+          oninput="(function(el){var c=document.getElementById('ev-desc-cnt');if(c){c.textContent=el.value.length+'/600';c.style.color=el.value.length>500?'#B71C1C':''}})( this)">%s</textarea>
+      </div>
       <div class="form-field"><label>Link PDF (opcional)</label><input type="url" name="pdf_url" value="%s" class="form-input" placeholder="https://... enlace al comunicado PDF"/></div>
       <div class="form-row">
         <div class="form-field"><label>Categoría</label><select name="category" class="form-input">%s</select></div>
@@ -523,8 +548,16 @@ func newsFormHTML(id, title, description, status, date, imageUrl, body string) s
     </div>
     <form %s hx-target="#toast-area" hx-swap="innerHTML">
       <input type="hidden" name="category" value="NOTICIA"/>
-      <div class="form-field"><label>Título</label><input type="text" name="title" value="%s" required class="form-input" placeholder="Título de la noticia"/></div>
-      <div class="form-field"><label>Resumen (aparece en la tarjeta)</label><textarea name="description" class="form-input" rows="2" placeholder="Resumen breve...">%s</textarea></div>
+      <div class="form-field">
+        <label>Título <small id="nw-title-cnt" style="float:right;font-size:11px;color:var(--md-outline)">0/120</small></label>
+        <input type="text" name="title" value="%s" required class="form-input" maxlength="120" placeholder="Título de la noticia"
+          oninput="(function(el){var c=document.getElementById('nw-title-cnt');if(c){c.textContent=el.value.length+'/120';c.style.color=el.value.length>100?'#B71C1C':''}})(this)"/>
+      </div>
+      <div class="form-field">
+        <label>Resumen <small id="nw-desc-cnt" style="float:right;font-size:11px;color:var(--md-outline)">0/600</small></label>
+        <textarea name="description" class="form-input" rows="2" maxlength="600" placeholder="Resumen breve..."
+          oninput="(function(el){var c=document.getElementById('nw-desc-cnt');if(c){c.textContent=el.value.length+'/600';c.style.color=el.value.length>500?'#B71C1C':''}})( this)">%s</textarea>
+      </div>
       <div class="form-field"><label>Contenido completo</label><textarea name="body" class="form-input" rows="6" placeholder="Escribe el artículo completo aquí...">%s</textarea></div>
       <div class="form-field"><label>URL Foto principal</label><input type="url" name="image_url" value="%s" class="form-input" placeholder="https://... enlace a la imagen"/></div>
       <div class="form-row">

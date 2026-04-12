@@ -190,30 +190,65 @@ func RegisterPBHooks(pb *pocketbase.PocketBase) {
 			return e.Next()
 		})
 
-		// Events changes → refresh web + devices
-		se.App.OnRecordAfterCreateSuccess("events").BindFunc(func(e *core.RecordEvent) error {
+		// content_blocks changes (events + news) → refresh all displays and web
+		se.App.OnRecordAfterCreateSuccess("content_blocks").BindFunc(func(e *core.RecordEvent) error {
 			if hubInstance != nil {
 				hubInstance.BroadcastAll()
 			}
 			return e.Next()
 		})
-		se.App.OnRecordAfterUpdateSuccess("events").BindFunc(func(e *core.RecordEvent) error {
+		se.App.OnRecordAfterUpdateSuccess("content_blocks").BindFunc(func(e *core.RecordEvent) error {
+			if hubInstance != nil {
+				hubInstance.BroadcastAll()
+			}
+			return e.Next()
+		})
+		se.App.OnRecordAfterDeleteSuccess("content_blocks").BindFunc(func(e *core.RecordEvent) error {
 			if hubInstance != nil {
 				hubInstance.BroadcastAll()
 			}
 			return e.Next()
 		})
 
-		// News changes → refresh web
-		se.App.OnRecordAfterCreateSuccess("news_articles").BindFunc(func(e *core.RecordEvent) error {
+		// playlists changes → broadcast to every device using that playlist + web
+		se.App.OnRecordAfterUpdateSuccess("playlists").BindFunc(func(e *core.RecordEvent) error {
+			if hubInstance == nil {
+				return e.Next()
+			}
+			playlistID := e.Record.Id
+			devs, err := se.App.FindRecordsByFilter("devices",
+				"playlist_id = '"+playlistID+"'", "", 100, 0)
+			if err == nil {
+				for _, dev := range devs {
+					if code := dev.GetString("code"); code != "" {
+						hubInstance.BroadcastToDevice(code, MsgPlaylistUpdate, nil)
+					}
+				}
+			}
+			// Also refresh web in case web_hero uses this playlist
+			hubInstance.BroadcastWeb()
+			return e.Next()
+		})
+		se.App.OnRecordAfterCreateSuccess("playlists").BindFunc(func(e *core.RecordEvent) error {
 			if hubInstance != nil {
-				hubInstance.BroadcastWeb()
+				hubInstance.BroadcastAll()
 			}
 			return e.Next()
 		})
-		se.App.OnRecordAfterUpdateSuccess("news_articles").BindFunc(func(e *core.RecordEvent) error {
+		se.App.OnRecordAfterDeleteSuccess("playlists").BindFunc(func(e *core.RecordEvent) error {
 			if hubInstance != nil {
-				hubInstance.BroadcastWeb()
+				hubInstance.BroadcastAll()
+			}
+			return e.Next()
+		})
+
+		// devices changes → broadcast to that specific device so it reloads its playlist
+		se.App.OnRecordAfterUpdateSuccess("devices").BindFunc(func(e *core.RecordEvent) error {
+			if hubInstance == nil {
+				return e.Next()
+			}
+			if code := e.Record.GetString("code"); code != "" {
+				hubInstance.BroadcastToDevice(code, MsgPlaylistUpdate, nil)
 			}
 			return e.Next()
 		})

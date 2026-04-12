@@ -33,15 +33,25 @@ func PageHandler(cfg *config.Config, page string) fiber.Handler {
 	}
 }
 
-// DeviceDisplay serves the kiosk mode display for a device
+// DeviceDisplay serves the kiosk mode display for a horizontal/screen device
 func DeviceDisplay(cfg *config.Config) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		code := c.Params("code")
-		if code == "" || len(code) != 4 {
+		if code == "" {
 			return c.Status(404).SendString("Código de dispositivo inválido")
 		}
-		// TODO: Fetch device config from PocketBase, render display template
 		return c.SendFile("./internal/templates/devices/display.html")
+	}
+}
+
+// TotemDisplay serves the vertical totem kiosk for a totem device
+func TotemDisplay(cfg *config.Config) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		code := c.Params("code")
+		if code == "" {
+			return c.Status(404).SendString("Código de dispositivo inválido")
+		}
+		return c.SendFile("./internal/templates/devices/totem.html")
 	}
 }
 
