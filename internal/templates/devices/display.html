@@ -72,7 +72,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 }
 
 /* Clock */
-.clock-block{flex-shrink:0;margin-bottom:24px}
+.clock-block{flex-shrink:0;margin-bottom:20px}
 .clock-time{
   font-family:var(--font-display);font-size:clamp(36px,5vw,64px);
   color:var(--on-surface);font-variant-numeric:tabular-nums;letter-spacing:-1px;line-height:1
@@ -80,7 +80,31 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
 .clock-date{font-size:13px;color:var(--on-surface-variant);margin-top:6px;line-height:1.4}
 
 /* Divider */
-.divider{height:1px;background:var(--outline-variant);margin-bottom:20px;flex-shrink:0}
+.divider{height:1px;background:var(--outline-variant);margin-bottom:18px;flex-shrink:0}
+
+/* Weather */
+.weather-block{flex-shrink:0;margin-bottom:18px}
+.weather-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.weather-left{flex:1;min-width:0}
+.weather-temp{
+  font-family:var(--font-display);font-size:clamp(28px,3.5vw,52px);
+  color:var(--on-surface);line-height:1;letter-spacing:-1px
+}
+.weather-cond{font-size:13px;color:var(--on-surface-variant);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.weather-loc{
+  font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--on-surface-variant);margin-top:3px;opacity:.55
+}
+.uv-badge{
+  text-align:center;padding:10px 12px;border-radius:10px;
+  background:rgba(28,27,26,.06);min-width:58px;flex-shrink:0;
+  transition:background 400ms
+}
+.uv-val{
+  font-family:var(--font-display);font-size:clamp(20px,2.5vw,32px);
+  color:var(--on-surface);line-height:1;transition:color 400ms
+}
+.uv-label{font-size:8px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--on-surface-variant);margin-top:2px}
 
 /* Events */
 .events-block{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
@@ -134,6 +158,23 @@ html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:var
         <div class="clock-date" id="clock-date">Colegio San Lorenzo</div>
       </div>
       <div class="divider"></div>
+
+      <!-- Weather + UV widget -->
+      <div class="weather-block" id="weather-block" style="display:none">
+        <div class="weather-row">
+          <div class="weather-left">
+            <div class="weather-temp" id="wx-temp">—</div>
+            <div class="weather-cond" id="wx-cond">—</div>
+            <div class="weather-loc">COPIAPÓ, CHILE</div>
+          </div>
+          <div class="uv-badge" id="uv-badge">
+            <div class="uv-val" id="uv-val">—</div>
+            <div class="uv-label">Índice UV</div>
+          </div>
+        </div>
+      </div>
+      <div class="divider" id="weather-divider" style="display:none"></div>
+
       <div class="events-block">
         <div class="events-label">Próximos eventos</div>
         <div class="events-list" id="events-list">
@@ -321,6 +362,47 @@ connectWS();
 // ── Init ───────────────────────────────────────────────────────────────────────
 loadPlaylist(false);
 setInterval(()=>loadPlaylist(true), 300000); // refresh playlist every 5 min (safety net)
+
+// ── Weather + UV ───────────────────────────────────────────────────────────────
+const WMO_ES = {
+  0:'Despejado',1:'Mayormente despejado',2:'Parcialmente nublado',3:'Nublado',
+  45:'Niebla',48:'Niebla helada',
+  51:'Llovizna leve',53:'Llovizna moderada',55:'Llovizna intensa',
+  61:'Lluvia leve',63:'Lluvia moderada',65:'Lluvia intensa',
+  71:'Nieve leve',73:'Nieve moderada',75:'Nieve intensa',77:'Granizo',
+  80:'Chubascos leves',81:'Chubascos moderados',82:'Chubascos fuertes',
+  85:'Nieve/chubascos leve',86:'Nieve/chubascos fuerte',
+  95:'Tormenta',96:'Tormenta c/granizo',99:'Tormenta intensa'
+};
+function uvColor(uv){
+  if(uv<3) return '#2E7D32';
+  if(uv<6) return '#F9A825';
+  if(uv<8) return '#E65100';
+  if(uv<11) return '#C62828';
+  return '#6A1B9A';
+}
+function loadWeather(){
+  fetch('https://api.open-meteo.com/v1/forecast?latitude=-27.3668&longitude=-70.3323&current=temperature_2m,weather_code,uv_index&timezone=America%2FSantiago&wind_speed_unit=kmh')
+    .then(r=>r.json())
+    .then(d=>{
+      const cur = d.current;
+      const temp = Math.round(cur.temperature_2m);
+      const cond = WMO_ES[cur.weather_code] || 'Variable';
+      const uv   = Math.round(cur.uv_index||0);
+      const col  = uvColor(uv);
+      document.getElementById('wx-temp').textContent = temp+'°';
+      document.getElementById('wx-cond').textContent = cond;
+      document.getElementById('uv-val').textContent  = uv;
+      const badge = document.getElementById('uv-badge');
+      badge.style.background = col+'22';
+      badge.querySelector('.uv-val').style.color = col;
+      document.getElementById('weather-block').style.display  = '';
+      document.getElementById('weather-divider').style.display = '';
+    })
+    .catch(()=>{});
+}
+loadWeather();
+setInterval(loadWeather, 600000); // refresh every 10 min
 
 // ── Kiosk helpers ──────────────────────────────────────────────────────────────
 document.addEventListener('click',()=>{

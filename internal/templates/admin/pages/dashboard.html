@@ -350,20 +350,29 @@ document.querySelectorAll('.sidebar-link').forEach(link => {
   }
 })();
 
-// WebSocket connection for realtime updates
+// WebSocket connection for realtime updates (reconnect with backoff, no page reload)
 (function() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const ws = new WebSocket(protocol + '//' + location.host + '/ws/web');
-  ws.onmessage = function(e) {
-    const msg = JSON.parse(e.data);
-    if (msg.type === 'refresh_all' || msg.type === 'refresh_web') {
-      // Refresh dashboard stats
-      htmx.trigger('#main-content', 'refresh');
-    }
-  };
-  ws.onclose = function() {
-    setTimeout(() => location.reload(), 5000);
-  };
+  let delay = 2000;
+  function connect() {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(protocol + '//' + location.host + '/ws/web');
+    ws.onopen = function() { delay = 2000; };
+    ws.onmessage = function(e) {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'refresh_all' || msg.type === 'refresh_web') {
+          // Refresh visible HTMX sections if they have a reload trigger
+          const wrap = document.getElementById('devices-table-wrap');
+          if (wrap) htmx.ajax('GET', '/admin/devices?fragment=table', {target:'#devices-table-wrap', swap:'innerHTML'});
+        }
+      } catch(_) {}
+    };
+    ws.onclose = function() {
+      setTimeout(function() { connect(); delay = Math.min(delay * 2, 30000); }, delay);
+    };
+    ws.onerror = function() { ws.close(); };
+  }
+  connect();
 })();
 </script>
 </body>
