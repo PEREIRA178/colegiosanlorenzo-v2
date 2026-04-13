@@ -669,30 +669,22 @@ func PlaylistList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 			records, _ := pb.FindRecordsByFilter("playlists", "", "name", 100, 0)
 			var sb strings.Builder
 			if len(records) == 0 {
-				sb.WriteString(`<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--md-outline)">Sin playlists — crea una nueva con el botón de arriba</td></tr>`)
+				sb.WriteString(`<p class="pl-empty-small">Sin playlists.<br/>Crea una con el botón Nueva.</p>`)
 			} else {
 				for _, r := range records {
-					status := r.GetString("status")
-					badgeClass := "badge-warning"
-					if status == "activa" {
-						badgeClass = "badge-success"
-					}
 					items, _ := pb.FindRecordsByFilter("playlist_items", "playlist_id='"+r.Id+"'", "", 100, 0)
-					sb.WriteString(fmt.Sprintf(`<tr>
-						<td style="font-weight:500">%s</td>
-						<td><span class="badge %s">%s</span></td>
-						<td style="color:var(--md-outline)">%d items</td>
-						<td><div style="display:flex;gap:6px">
-							<button class="topbar-btn topbar-btn-outline" style="padding:3px 8px;font-size:12px"
-								hx-get="/admin/playlists/%s/edit" hx-target="#playlist-editor-area" hx-swap="innerHTML">Editar</button>
-							<button style="padding:3px 8px;font-size:12px;background:#FDECEA;color:#B71C1C;border:none;cursor:pointer;border-radius:9999px;font-family:inherit"
-								hx-delete="/admin/playlists/%s" hx-confirm="¿Eliminar playlist?" hx-target="closest tr" hx-swap="outerHTML swap:300ms">Eliminar</button>
-						</div></td>
-					</tr>`,
+					status := r.GetString("status")
+					sb.WriteString(fmt.Sprintf(
+						`<div class="pl-list-item" data-plid="%s"`+
+							` hx-get="/admin/playlists/%s/edit" hx-target="#pl-center" hx-swap="innerHTML"`+
+							` onclick="window._plSetActive('%s')">`+
+							`<span class="pl-list-icon material-symbols-outlined">playlist_play</span>`+
+							`<div class="pl-list-body"><div class="pl-list-name">%s</div><div class="pl-list-meta">%d items · %s</div></div>`+
+							`</div>`,
+						r.Id, r.Id, r.Id,
 						template.HTMLEscapeString(r.GetString("name")),
-						badgeClass, template.HTMLEscapeString(status),
 						len(items),
-						r.Id, r.Id,
+						template.HTMLEscapeString(status),
 					))
 				}
 			}
@@ -742,8 +734,8 @@ func PlaylistCreate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler
 		}
 		savePlItems(pb, pl.Id, items)
 		c.Set("HX-Trigger", "playlistCreated")
-		return c.SendString(`<div class="toast toast-success" id="toast-area">✅ Playlist creada
-<script>document.getElementById('playlist-editor-area').innerHTML='';htmx.trigger(document.body,'playlistCreated');setTimeout(function(){var t=document.getElementById('toast-area');if(t)t.innerHTML=''},2000)</script></div>`)
+		return c.SendString(`<div class="toast toast-success">✅ Playlist creada
+<script>if(window._plReset)window._plReset();htmx.trigger(document.body,'playlistCreated');setTimeout(function(){var t=document.getElementById('toast-area');if(t)t.innerHTML=''},2000)</script></div>`)
 	}
 }
 
@@ -815,8 +807,8 @@ func PlaylistUpdate(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler
 		}
 		savePlItems(pb, id, items)
 		c.Set("HX-Trigger", "playlistUpdated")
-		return c.SendString(`<div class="toast toast-success" id="toast-area">✅ Playlist actualizada
-<script>document.getElementById('playlist-editor-area').innerHTML='';htmx.trigger(document.body,'playlistUpdated');setTimeout(function(){var t=document.getElementById('toast-area');if(t)t.innerHTML=''},2000)</script></div>`)
+		return c.SendString(`<div class="toast toast-success">✅ Playlist actualizada
+<script>if(window._plReset)window._plReset();htmx.trigger(document.body,'playlistUpdated');setTimeout(function(){var t=document.getElementById('toast-area');if(t)t.innerHTML=''},2000)</script></div>`)
 	}
 }
 
@@ -835,7 +827,7 @@ func PlaylistDelete(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler
 			return c.SendString(`<div class="toast toast-error">Error eliminando</div>`)
 		}
 		c.Set("HX-Trigger", "playlistDeleted")
-		return c.SendString("")
+		return c.SendString(`<div class="pl-placeholder"><span class="material-symbols-outlined">playlist_add</span><p>Playlist eliminada.<br/>Selecciona otra o crea una nueva.</p></div>`)
 	}
 }
 
@@ -1194,10 +1186,10 @@ func savePlItems(pb *pocketbase.PocketBase, playlistID string, items []plItemInp
 	}
 }
 
-// buildContentPool returns the content-card grid for the playlist editor.
+// buildContentPool returns a vertical list of content items for the library sidebar.
 func buildContentPool(c *fiber.Ctx, pb *pocketbase.PocketBase) error {
 	var sb strings.Builder
-	sb.WriteString(`<div class="content-grid">`)
+	sb.WriteString(`<div class="content-list">`)
 
 	cbs, _ := pb.FindRecordsByFilter("content_blocks", "", "-date", 100, 0)
 	for _, r := range cbs {
@@ -1214,7 +1206,10 @@ func buildContentPool(c *fiber.Ctx, pb *pocketbase.PocketBase) error {
 			icon = "newspaper"
 		}
 		sb.WriteString(fmt.Sprintf(
-			`<div class="content-card" data-id="%s" data-tipo="content_block" data-type="%s" data-name="%s" data-thumb="" onclick="addCardToPlaylist(this)"><div class="content-card-thumb"><span class="material-symbols-outlined" style="font-size:28px;color:var(--md-outline)">%s</span></div><div class="content-card-body"><div class="content-card-name">%s</div><div class="content-card-meta">%s</div></div></div>`,
+			`<div class="content-item" data-id="%s" data-tipo="content_block" data-type="%s" data-name="%s" data-thumb="" onclick="addCardToPlaylist(this)">`+
+				`<div class="content-item-thumb"><span class="material-symbols-outlined">%s</span></div>`+
+				`<div class="content-item-body"><div class="content-item-name">%s</div><div class="content-item-meta">%s</div></div>`+
+				`</div>`,
 			r.Id, dtype,
 			template.HTMLEscapeString(r.GetString("title")),
 			icon,
@@ -1233,18 +1228,21 @@ func buildContentPool(c *fiber.Ctx, pb *pocketbase.PocketBase) error {
 		}
 		var thumbHTML string
 		if url != "" && tipo == "image" {
-			thumbHTML = fmt.Sprintf(`<img src="%s" alt="" loading="lazy" onerror="this.style.display='none';this.parentElement.innerHTML='<span class=\'material-symbols-outlined\' style=\'font-size:28px;color:var(--md-outline)\'>broken_image</span>'"/>`, template.HTMLEscapeString(url))
+			thumbHTML = fmt.Sprintf(`<img src="%s" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<span class=\'material-symbols-outlined\'>broken_image</span>'"/>`, template.HTMLEscapeString(url))
 		} else if url != "" && tipo == "video" {
-			thumbHTML = fmt.Sprintf(`<video src="%s" muted playsinline preload="metadata"></video><span class="material-symbols-outlined" style="position:absolute;font-size:24px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)">play_circle</span>`, template.HTMLEscapeString(url))
+			thumbHTML = `<span class="material-symbols-outlined">movie</span>`
 		} else {
 			ic := "image"
 			if tipo == "video" {
 				ic = "movie"
 			}
-			thumbHTML = fmt.Sprintf(`<span class="material-symbols-outlined" style="font-size:28px;color:var(--md-outline)">%s</span>`, ic)
+			thumbHTML = fmt.Sprintf(`<span class="material-symbols-outlined">%s</span>`, ic)
 		}
 		sb.WriteString(fmt.Sprintf(
-			`<div class="content-card" data-id="%s" data-tipo="%s" data-type="%s" data-name="%s" data-thumb="%s" onclick="addCardToPlaylist(this)"><div class="content-card-thumb" style="position:relative">%s</div><div class="content-card-body"><div class="content-card-name">%s</div><div class="content-card-meta">%s</div></div></div>`,
+			`<div class="content-item" data-id="%s" data-tipo="%s" data-type="%s" data-name="%s" data-thumb="%s" onclick="addCardToPlaylist(this)">`+
+				`<div class="content-item-thumb">%s</div>`+
+				`<div class="content-item-body"><div class="content-item-name">%s</div><div class="content-item-meta">%s</div></div>`+
+				`</div>`,
 			r.Id, tipo, dtype,
 			template.HTMLEscapeString(r.GetString("filename")),
 			template.HTMLEscapeString(url),
@@ -1255,7 +1253,7 @@ func buildContentPool(c *fiber.Ctx, pb *pocketbase.PocketBase) error {
 	}
 
 	if len(cbs) == 0 && len(mms) == 0 {
-		sb.WriteString(`<p style="padding:20px;color:var(--md-outline);font-size:13px;grid-column:1/-1;text-align:center">Sin contenido. Agrega imágenes, videos o eventos primero.</p>`)
+		sb.WriteString(`<p class="pl-empty-small">Sin contenido. Sube imágenes, videos o crea eventos/noticias.</p>`)
 	}
 
 	sb.WriteString(`</div>`)
@@ -1263,293 +1261,193 @@ func buildContentPool(c *fiber.Ctx, pb *pocketbase.PocketBase) error {
 	return c.SendString(sb.String())
 }
 
-// playlistEditorHTML builds the playlist editor fragment (no DOCTYPE/html/head/body).
+// playlistEditorHTML builds just the center-panel editor form.
+// The surrounding 3-column layout and library live in playlists.html.
 // Pass id="" and name="" for create mode; populated for edit mode.
 func playlistEditorHTML(id, name, existingItemsJSON string) string {
-	title := "Nueva Playlist"
-	if id != "" {
-		title = "Editar Playlist"
-	}
 	formAction := `hx-post="/admin/playlists"`
+	deleteBtn := ""
 	if id != "" {
 		formAction = fmt.Sprintf(`hx-put="/admin/playlists/%s"`, id)
+		deleteBtn = fmt.Sprintf(
+			`<button type="button" class="pl-btn-delete" hx-delete="/admin/playlists/%s" hx-confirm="¿Eliminar esta playlist?" hx-target="#pl-center" hx-swap="innerHTML">Eliminar</button>`,
+			id)
 	}
 
-	_ = title
-	return fmt.Sprintf(`<div class="pl-editor-wrap">
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<style>
-.pl-editor-root{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;height:calc(100vh - 210px);min-height:520px;margin-top:12px}
-.pl-main,.pl-library{background:var(--md-surface-bright);border-radius:var(--r-lg);border:1px solid var(--md-outline-variant);display:flex;flex-direction:column;overflow:hidden;min-width:0}
-.pl-main-header{padding:12px 16px;border-bottom:1px solid var(--md-outline-variant);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.pl-name-input{flex:1;min-width:160px;background:transparent;border:none;outline:none;font-size:18px;font-weight:600;font-family:var(--font-display);color:var(--md-on-surface);padding:6px 2px}
-.pl-name-input:focus{box-shadow:inset 0 -2px 0 var(--md-primary)}
-.pl-btn-save{padding:9px 18px;border-radius:var(--r-full);font-size:13px;font-weight:500;border:none;cursor:pointer;font-family:var(--font-body);background:var(--md-primary);color:var(--md-on-primary)}
-.pl-btn-save:hover{filter:brightness(1.05)}
-.pl-btn-cancel{padding:9px 16px;border-radius:var(--r-full);font-size:13px;cursor:pointer;font-family:var(--font-body);background:transparent;color:var(--md-on-surface-variant);border:1px solid var(--md-outline-variant)}
-.pl-table-wrap{flex:1;overflow-y:auto;position:relative}
-.pl-items-tbl{width:100%%;border-collapse:collapse}
-.pl-items-tbl thead th{text-align:left;padding:10px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--md-outline);border-bottom:1px solid var(--md-outline-variant);background:var(--md-surface-bright);position:sticky;top:0;z-index:1}
-.pl-items-tbl tbody tr{border-bottom:1px solid var(--md-outline-variant);transition:background 120ms}
-.pl-items-tbl tbody tr:hover{background:var(--md-surface-container)}
-.pl-items-tbl tbody tr.sortable-ghost{opacity:0.4}
-.pl-items-tbl td{padding:8px 14px;vertical-align:middle;font-size:13px;color:var(--md-on-surface)}
-.pl-row-idx{width:28px;color:var(--md-outline);font-size:12px}
-.pl-row-handle{width:22px;color:var(--md-outline);cursor:grab;user-select:none;text-align:center}
-.pl-row-thumb{width:52px}
-.pl-row-thumb-inner{width:44px;height:28px;border-radius:4px;background:var(--md-surface-container-high);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.pl-row-thumb-inner img,.pl-row-thumb-inner video{width:100%%;height:100%%;object-fit:cover}
-.pl-row-thumb-inner .material-symbols-outlined{font-size:18px;color:var(--md-outline)}
-.pl-row-name{font-weight:500;max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pl-row-type{color:var(--md-outline);font-size:12px;text-transform:capitalize}
-.pl-row-dur-input{width:58px;padding:4px 6px;border:1px solid var(--md-outline-variant);border-radius:5px;font-size:12px;text-align:center;background:var(--md-surface);font-family:inherit}
-.pl-row-rm{background:none;border:none;cursor:pointer;color:var(--md-outline);padding:4px;border-radius:50%%;line-height:0;display:inline-flex;align-items:center;justify-content:center}
-.pl-row-rm:hover{background:#FDECEA;color:#B71C1C}
-.pl-empty-state{padding:60px 20px;text-align:center;color:var(--md-outline);font-size:14px}
-.pl-empty-state .material-symbols-outlined{font-size:48px;color:var(--md-outline-variant);display:block;margin:0 auto 10px}
-.pl-lib-header{padding:12px 12px 10px;border-bottom:1px solid var(--md-outline-variant);display:flex;flex-direction:column;gap:8px}
-.pl-lib-title{font-size:13px;font-weight:600;color:var(--md-on-surface-variant);text-transform:uppercase;letter-spacing:0.5px;display:flex;align-items:center;justify-content:space-between}
-.pl-lib-count{font-size:11px;color:var(--md-outline);font-weight:400;text-transform:none;letter-spacing:0}
-.pl-search-wrap{position:relative}
-.pl-search-wrap .material-symbols-outlined{position:absolute;left:10px;top:50%%;transform:translateY(-50%%);font-size:18px;color:var(--md-outline);pointer-events:none}
-.pl-search-input{width:100%%;padding:8px 12px 8px 34px;border:1px solid var(--md-outline-variant);border-radius:var(--r-full);font-size:13px;background:var(--md-surface);font-family:inherit;outline:none}
-.pl-search-input:focus{border-color:var(--md-primary)}
-.pl-tabs{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--md-outline-variant);overflow-x:auto;flex-shrink:0}
-.pl-tabs::-webkit-scrollbar{height:0}
-.content-tab{padding:5px 11px;border-radius:var(--r-full);font-size:11px;font-weight:500;border:1px solid var(--md-outline-variant);background:transparent;color:var(--md-on-surface-variant);cursor:pointer;font-family:var(--font-body);white-space:nowrap;flex-shrink:0}
-.content-tab.active{background:var(--md-primary);color:var(--md-on-primary);border-color:var(--md-primary)}
-.pl-lib-body{flex:1;overflow-y:auto;padding:10px}
-.content-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.content-card{background:var(--md-surface);border:1px solid var(--md-outline-variant);border-radius:var(--r-md);cursor:pointer;overflow:hidden;transition:all 180ms;display:flex;flex-direction:column}
-.content-card:hover{border-color:var(--md-primary);box-shadow:var(--elev-2);transform:translateY(-1px)}
-.content-card-thumb{width:100%%;aspect-ratio:16/10;background:var(--md-surface-container-high);display:flex;align-items:center;justify-content:center;overflow:hidden}
-.content-card-thumb img,.content-card-thumb video{width:100%%;height:100%%;object-fit:cover;display:block}
-.content-card-body{padding:6px 8px}
-.content-card-name{font-size:11px;font-weight:500;color:var(--md-on-surface);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
-.content-card-meta{font-size:10px;color:var(--md-outline);text-transform:capitalize}
-@media(max-width:980px){.pl-editor-root{grid-template-columns:1fr;height:auto;min-height:0}.pl-library{max-height:460px}}
-</style>
-<form id="pl-form" %s hx-target="#toast-area" hx-swap="innerHTML">
+	return fmt.Sprintf(`<form id="pl-form" %s hx-target="#toast-area" hx-swap="innerHTML" style="display:flex;flex-direction:column;height:100%%;min-height:0">
 <input type="hidden" id="pl-items-json" name="items_json" value="[]"/>
-<div class="pl-editor-root">
-  <div class="pl-main">
-    <div class="pl-main-header">
-      <input type="text" name="name" class="pl-name-input" value="%s" required placeholder="Nombre de la playlist"/>
-      <button type="button" class="pl-btn-cancel" onclick="document.getElementById('playlist-editor-area').innerHTML=''">Cancelar</button>
-      <button type="submit" class="pl-btn-save" onclick="plPrepareSubmit()">Guardar</button>
-    </div>
-    <div class="pl-table-wrap">
-      <table class="pl-items-tbl">
-        <thead>
-          <tr>
-            <th style="width:22px"></th>
-            <th style="width:28px">#</th>
-            <th style="width:52px"></th>
-            <th>Título</th>
-            <th style="width:90px">Tipo</th>
-            <th style="width:90px">Duración</th>
-            <th style="width:44px"></th>
-          </tr>
-        </thead>
-        <tbody id="pl-tbody"></tbody>
-      </table>
-      <div id="pl-empty" class="pl-empty-state">
-        <span class="material-symbols-outlined">queue_play_next</span>
-        Haz clic en los items de la derecha<br/>para agregarlos a la playlist
-      </div>
-    </div>
-  </div>
-
-  <div class="pl-library">
-    <div class="pl-lib-header">
-      <div class="pl-lib-title">Contenido <span class="pl-lib-count" id="pl-lib-count"></span></div>
-      <div class="pl-search-wrap">
-        <span class="material-symbols-outlined">search</span>
-        <input type="search" class="pl-search-input" placeholder="Buscar..." oninput="plFilter()" id="pl-search"/>
-      </div>
-    </div>
-    <div class="pl-tabs">
-      <button type="button" class="content-tab active" onclick="plTab('all',this)">Todo</button>
-      <button type="button" class="content-tab" onclick="plTab('imagen',this)">Imágenes</button>
-      <button type="button" class="content-tab" onclick="plTab('video',this)">Videos</button>
-      <button type="button" class="content-tab" onclick="plTab('eventos',this)">Eventos</button>
-      <button type="button" class="content-tab" onclick="plTab('noticias',this)">Noticias</button>
-    </div>
-    <div class="pl-lib-body">
-      <div id="pl-content-grid"
-           hx-get="/admin/playlists?fragment=content"
-           hx-trigger="load"
-           hx-swap="innerHTML">
-        <p style="color:var(--md-outline);font-size:13px;padding:12px;text-align:center">Cargando...</p>
-      </div>
-    </div>
+<div class="pl-main-header">
+  <input type="text" name="name" class="pl-name-input" value="%s" required placeholder="Nombre de la playlist"/>
+  %s
+  <button type="button" class="pl-btn-cancel" onclick="window._plReset&&window._plReset()">Cancelar</button>
+  <button type="submit" class="pl-btn-save" onclick="plPrepareSubmit()">Guardar</button>
+</div>
+<div class="pl-table-wrap">
+  <table class="pl-items-tbl">
+    <thead>
+      <tr>
+        <th style="width:20px"></th>
+        <th style="width:26px">#</th>
+        <th style="width:54px"></th>
+        <th>Título</th>
+        <th style="width:80px">Tipo</th>
+        <th style="width:90px">Duración</th>
+        <th style="width:38px"></th>
+      </tr>
+    </thead>
+    <tbody id="pl-tbody"></tbody>
+  </table>
+  <div id="pl-empty" class="pl-empty-state">
+    <span class="material-symbols-outlined">queue_play_next</span>
+    Haz clic en el contenido<br/>para agregarlo a la playlist
   </div>
 </div>
 </form>
 <script>
 (function(){
-var plItems = [];
-var EXISTING = %s;
-if(EXISTING && EXISTING.length){
-  EXISTING.forEach(function(it){
-    plItems.push({tipo:it.tipo,refID:it.ref_id||'',name:it.name||it.ref_id||'',thumb:it.thumb||'',duracion:it.duracion||15});
-  });
-}
-function renderPl(){
-  var tbody = document.getElementById('pl-tbody');
-  var empty = document.getElementById('pl-empty');
-  if(!tbody) return;
-  tbody.innerHTML = '';
-  if(!plItems.length){
-    if(empty) empty.style.display = '';
-    return;
-  }
-  if(empty) empty.style.display = 'none';
-  plItems.forEach(function(it,idx){
-    var tr = document.createElement('tr');
-    tr.dataset.idx = idx;
-
-    var tdH = document.createElement('td');
-    tdH.className = 'pl-row-handle';
-    var handle = document.createElement('span');
-    handle.className = 'material-symbols-outlined';
-    handle.textContent = 'drag_indicator';
-    handle.style.fontSize = '18px';
-    tdH.appendChild(handle);
-
-    var tdIdx = document.createElement('td');
-    tdIdx.className = 'pl-row-idx';
-    tdIdx.textContent = (idx+1);
-
-    var tdThumb = document.createElement('td');
-    tdThumb.className = 'pl-row-thumb';
-    var thumbWrap = document.createElement('div');
-    thumbWrap.className = 'pl-row-thumb-inner';
-    if(it.thumb && it.tipo==='image'){
-      var im = document.createElement('img');
-      im.src = it.thumb; im.alt = '';
-      im.onerror = function(){ this.replaceWith(makeIcon(iconFor(it.tipo))); };
-      thumbWrap.appendChild(im);
-    } else if(it.thumb && it.tipo==='video'){
-      var v = document.createElement('video');
-      v.src = it.thumb; v.muted = true; v.playsInline = true; v.preload='metadata';
-      thumbWrap.appendChild(v);
-    } else {
-      thumbWrap.appendChild(makeIcon(iconFor(it.tipo)));
-    }
-    tdThumb.appendChild(thumbWrap);
-
-    var tdName = document.createElement('td');
-    var nm = document.createElement('div');
-    nm.className = 'pl-row-name';
-    nm.textContent = it.name;
-    nm.title = it.name;
-    tdName.appendChild(nm);
-
-    var tdType = document.createElement('td');
-    tdType.className = 'pl-row-type';
-    tdType.textContent = labelFor(it.tipo);
-
-    var tdDur = document.createElement('td');
-    var durWrap = document.createElement('div');
-    durWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
-    var dur = document.createElement('input');
-    dur.type = 'number';
-    dur.className = 'pl-row-dur-input';
-    dur.value = it.duracion||15;
-    dur.min = 5; dur.max = 600;
-    dur.addEventListener('change',(function(i){ return function(){ plItems[i].duracion=parseInt(this.value)||15; }; })(idx));
-    var sLbl = document.createElement('span');
-    sLbl.style.cssText = 'font-size:11px;color:var(--md-outline)';
-    sLbl.textContent = 'seg';
-    durWrap.appendChild(dur); durWrap.appendChild(sLbl);
-    tdDur.appendChild(durWrap);
-
-    var tdRm = document.createElement('td');
-    var rm = document.createElement('button');
-    rm.type = 'button';
-    rm.className = 'pl-row-rm';
-    rm.title = 'Quitar';
-    var rmI = document.createElement('span');
-    rmI.className = 'material-symbols-outlined';
-    rmI.style.fontSize = '18px';
-    rmI.textContent = 'close';
-    rm.appendChild(rmI);
-    rm.addEventListener('click',(function(i){ return function(){ plItems.splice(i,1); renderPl(); }; })(idx));
-    tdRm.appendChild(rm);
-
-    tr.appendChild(tdH); tr.appendChild(tdIdx); tr.appendChild(tdThumb);
-    tr.appendChild(tdName); tr.appendChild(tdType); tr.appendChild(tdDur); tr.appendChild(tdRm);
-    tbody.appendChild(tr);
-  });
-  if(window.Sortable){
-    if(tbody._sortable){ tbody._sortable.destroy(); }
-    tbody._sortable = new Sortable(tbody,{
-      animation:180,handle:'.pl-row-handle',ghostClass:'sortable-ghost',
-      onEnd:function(evt){
-        var moved = plItems.splice(evt.oldIndex,1)[0];
-        plItems.splice(evt.newIndex,0,moved);
-        renderPl();
-      }
+  var plItems = [];
+  var EXISTING = %s;
+  if(EXISTING && EXISTING.length){
+    EXISTING.forEach(function(it){
+      plItems.push({
+        tipo: it.tipo,
+        refID: it.ref_id||'',
+        name: it.name||it.ref_id||'',
+        thumb: it.thumb||'',
+        duracion: it.duracion||15
+      });
     });
   }
-}
-function iconFor(t){ if(t==='video') return 'movie'; if(t==='content_block') return 'article'; return 'image'; }
-function labelFor(t){ if(t==='video') return 'Video'; if(t==='image') return 'Imagen'; if(t==='content_block') return 'Contenido'; return t; }
-function makeIcon(name){
-  var s = document.createElement('span');
-  s.className = 'material-symbols-outlined';
-  s.textContent = name;
-  return s;
-}
-window.addCardToPlaylist = function(card){
-  var id = card.dataset.id;
-  for(var i=0;i<plItems.length;i++){ if(plItems[i].refID===id){ return; } }
-  plItems.push({
-    tipo: card.dataset.tipo,
-    refID: id,
-    name: card.dataset.name||id,
-    thumb: card.dataset.thumb||'',
-    duracion: 15
-  });
+  function iconFor(t){ if(t==='video') return 'movie'; if(t==='content_block') return 'article'; return 'image'; }
+  function labelFor(t){ if(t==='video') return 'Video'; if(t==='image') return 'Imagen'; if(t==='content_block') return 'Contenido'; return t; }
+  function makeIcon(name){
+    var s = document.createElement('span');
+    s.className = 'material-symbols-outlined';
+    s.textContent = name;
+    return s;
+  }
+  function renderPl(){
+    var tbody = document.getElementById('pl-tbody');
+    var empty = document.getElementById('pl-empty');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    if(!plItems.length){
+      if(empty) empty.style.display = '';
+      return;
+    }
+    if(empty) empty.style.display = 'none';
+    plItems.forEach(function(it,idx){
+      var tr = document.createElement('tr');
+      tr.dataset.idx = idx;
+
+      var tdH = document.createElement('td');
+      tdH.className = 'pl-row-handle';
+      var handle = document.createElement('span');
+      handle.className = 'material-symbols-outlined';
+      handle.textContent = 'drag_indicator';
+      handle.style.fontSize = '16px';
+      tdH.appendChild(handle);
+
+      var tdIdx = document.createElement('td');
+      tdIdx.className = 'pl-row-idx';
+      tdIdx.textContent = (idx+1);
+
+      var tdThumb = document.createElement('td');
+      tdThumb.className = 'pl-row-thumb';
+      var thumbWrap = document.createElement('div');
+      thumbWrap.className = 'pl-row-thumb-inner';
+      if(it.thumb && it.tipo==='image'){
+        var im = document.createElement('img');
+        im.src = it.thumb; im.alt = '';
+        im.onerror = function(){ this.replaceWith(makeIcon(iconFor(it.tipo))); };
+        thumbWrap.appendChild(im);
+      } else if(it.thumb && it.tipo==='video'){
+        var v = document.createElement('video');
+        v.src = it.thumb; v.muted = true; v.playsInline = true; v.preload='metadata';
+        thumbWrap.appendChild(v);
+      } else {
+        thumbWrap.appendChild(makeIcon(iconFor(it.tipo)));
+      }
+      tdThumb.appendChild(thumbWrap);
+
+      var tdName = document.createElement('td');
+      var nm = document.createElement('div');
+      nm.className = 'pl-row-name';
+      nm.textContent = it.name;
+      nm.title = it.name;
+      tdName.appendChild(nm);
+
+      var tdType = document.createElement('td');
+      tdType.className = 'pl-row-type';
+      tdType.textContent = labelFor(it.tipo);
+
+      var tdDur = document.createElement('td');
+      var durWrap = document.createElement('div');
+      durWrap.style.cssText = 'display:flex;align-items:center;gap:4px';
+      var dur = document.createElement('input');
+      dur.type = 'number';
+      dur.className = 'pl-row-dur-input';
+      dur.value = it.duracion||15;
+      dur.min = 5; dur.max = 600;
+      dur.addEventListener('change',(function(i){ return function(){ plItems[i].duracion=parseInt(this.value)||15; }; })(idx));
+      var sLbl = document.createElement('span');
+      sLbl.style.cssText = 'font-size:11px;color:var(--md-outline)';
+      sLbl.textContent = 'seg';
+      durWrap.appendChild(dur); durWrap.appendChild(sLbl);
+      tdDur.appendChild(durWrap);
+
+      var tdRm = document.createElement('td');
+      var rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'pl-row-rm';
+      rm.title = 'Quitar';
+      var rmI = document.createElement('span');
+      rmI.className = 'material-symbols-outlined';
+      rmI.style.fontSize = '16px';
+      rmI.textContent = 'close';
+      rm.appendChild(rmI);
+      rm.addEventListener('click',(function(i){ return function(){ plItems.splice(i,1); renderPl(); }; })(idx));
+      tdRm.appendChild(rm);
+
+      tr.appendChild(tdH); tr.appendChild(tdIdx); tr.appendChild(tdThumb);
+      tr.appendChild(tdName); tr.appendChild(tdType); tr.appendChild(tdDur); tr.appendChild(tdRm);
+      tbody.appendChild(tr);
+    });
+    if(window.Sortable){
+      if(tbody._sortable){ tbody._sortable.destroy(); }
+      tbody._sortable = new Sortable(tbody,{
+        animation:180,handle:'.pl-row-handle',ghostClass:'sortable-ghost',
+        onEnd:function(evt){
+          var moved = plItems.splice(evt.oldIndex,1)[0];
+          plItems.splice(evt.newIndex,0,moved);
+          renderPl();
+        }
+      });
+    }
+  }
+  window._plCurrentEditor = {
+    add: function(card){
+      var id = card.dataset.id;
+      for(var i=0;i<plItems.length;i++){ if(plItems[i].refID===id){ return; } }
+      plItems.push({
+        tipo: card.dataset.tipo,
+        refID: id,
+        name: card.dataset.name||id,
+        thumb: card.dataset.thumb||'',
+        duracion: 15
+      });
+      renderPl();
+    }
+  };
+  window.plPrepareSubmit = function(){
+    var data = plItems.map(function(it,i){
+      return {tipo:it.tipo,ref_id:it.refID,orden:i+1,duracion:it.duracion||15,name:it.name};
+    });
+    var inp = document.getElementById('pl-items-json');
+    if(inp){ inp.value = JSON.stringify(data); }
+  };
   renderPl();
-};
-window.plTab = function(type,btn){
-  document.querySelectorAll('.content-tab').forEach(function(t){ t.classList.remove('active'); });
-  btn.classList.add('active');
-  window._plTabFilter = type;
-  plFilter();
-};
-window.plFilter = function(){
-  var q = (document.getElementById('pl-search')||{value:''}).value.toLowerCase().trim();
-  var type = window._plTabFilter||'all';
-  var grid = document.getElementById('pl-content-grid');
-  var count = 0, total = 0;
-  if(!grid) return;
-  grid.querySelectorAll('.content-card').forEach(function(c){
-    total++;
-    var matchType = (type==='all'||c.dataset.type===type);
-    var matchQ = !q || (c.dataset.name||'').toLowerCase().indexOf(q)>=0;
-    var show = matchType && matchQ;
-    c.style.display = show ? '' : 'none';
-    if(show) count++;
-  });
-  var cEl = document.getElementById('pl-lib-count');
-  if(cEl) cEl.textContent = count+'/'+total;
-};
-window.plPrepareSubmit = function(){
-  var data = plItems.map(function(it,i){
-    return {tipo:it.tipo,ref_id:it.refID,orden:i+1,duracion:it.duracion||15,name:it.name};
-  });
-  var inp = document.getElementById('pl-items-json');
-  if(inp){ inp.value = JSON.stringify(data); }
-};
-document.body.addEventListener('htmx:afterSwap',function(ev){
-  if(ev.target && ev.target.id==='pl-content-grid'){ plFilter(); }
-});
-renderPl();
 })();
-</script>
-</div>`,
-		formAction, template.HTMLEscapeString(name), existingItemsJSON)
+</script>`,
+		formAction, template.HTMLEscapeString(name), deleteBtn, existingItemsJSON)
 }
