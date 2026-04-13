@@ -512,14 +512,14 @@ func SeedDevicesAndPlaylists(app core.App) error {
 		return fmt.Errorf("save hero content_block: %w", err)
 	}
 
-	// ── 2. Placeholder image multimedia ───────────────────────────────────────
+	// ── 2. Hero slide image multimedia ────────────────────────────────────────
 	mmCol, err := app.FindCollectionByNameOrId("multimedia")
 	if err != nil {
 		return fmt.Errorf("multimedia collection not found: %w", err)
 	}
 	imgMM := core.NewRecord(mmCol)
-	imgMM.Set("filename", "campus-csl.jpg")
-	imgMM.Set("url_r2", "https://colegiosanlorenzo.cl/wp-content/uploads/campus-csl.jpg")
+	imgMM.Set("filename", "Comunicado-coloreate.png")
+	imgMM.Set("url_r2", "https://i0.wp.com/colegiosanlorenzo.cl/wp-content/uploads/2026/03/Comunicado-coloreate.png?w=500&ssl=1")
 	imgMM.Set("type", "imagen")
 	imgMM.Set("estado", "publicado")
 	if err := app.Save(imgMM); err != nil {

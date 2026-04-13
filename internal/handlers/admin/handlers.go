@@ -91,7 +91,7 @@ func MultimediaList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler
 		if c.Query("fragment") != "rows" {
 			return c.SendFile("./internal/templates/admin/pages/multimedia.html")
 		}
-		records, err := pb.FindRecordsByFilter("multimedia", "", "-created", 100, 0)
+		records, err := pb.FindRecordsByFilter("multimedia", "", "filename", 100, 0)
 		var sb strings.Builder
 		if err != nil || len(records) == 0 {
 			sb.WriteString(`<tr><td colspan="5" style="text-align:center;padding:32px;color:var(--md-outline)">Sin archivos multimedia</td></tr>`)
@@ -666,7 +666,7 @@ func PlaylistList(cfg *config.Config, pb *pocketbase.PocketBase) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		switch c.Query("fragment") {
 		case "list":
-			records, _ := pb.FindRecordsByFilter("playlists", "", "-created", 100, 0)
+			records, _ := pb.FindRecordsByFilter("playlists", "", "name", 100, 0)
 			var sb strings.Builder
 			if len(records) == 0 {
 				sb.WriteString(`<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--md-outline)">Sin playlists — crea una nueva con el botón de arriba</td></tr>`)
@@ -1218,7 +1218,7 @@ func buildContentPool(c *fiber.Ctx, pb *pocketbase.PocketBase) error {
 		))
 	}
 
-	mms, _ := pb.FindRecordsByFilter("multimedia", "", "-created", 100, 0)
+	mms, _ := pb.FindRecordsByFilter("multimedia", "", "filename", 100, 0)
 	for _, r := range mms {
 		mtype := r.GetString("type")
 		tipo, dtype, icon := "image", "imagen", "🖼️"
